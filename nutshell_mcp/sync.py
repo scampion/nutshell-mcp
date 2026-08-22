@@ -299,4 +299,11 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # Exécuté par `python -m nutshell_mcp.sync`, ce fichier est chargé sous le nom
+    # `__main__` ; un pipeline qui fait `from .sync import SyncReport` déclencherait
+    # alors un *second* import du module, avec une classe SyncReport distincte — et
+    # le rapport renvoyé serait rejeté par le `isinstance` de sync_pipeline. On
+    # délègue donc à l'unique module canonique.
+    from nutshell_mcp.sync import main as _main
+
+    raise SystemExit(_main())
