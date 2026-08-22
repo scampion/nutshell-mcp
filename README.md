@@ -20,7 +20,7 @@ Document de référence : `architecture-spec-mcp-territorial.md`.
    │ GISCO      → geo.py          géométries NUTS/villes + table geo   │
    │ Eurostat   → mirror.py       bulk TSV.gz → Parquet natif          │
    │              project_eurostat.py  → projection au grain canonique │
-   │ OpenStreetMap → ingest_osm.py     (lot 2, à venir)                │
+   │ OpenStreetMap → ingest_osm.py     extraits Geofabrik → POI       │
    │ Copernicus    → ingest_cds.py     (lot 3, à venir)                │
    └───────────────────────────────┬───────────────────────────────────┘
                                    ▼
@@ -160,6 +160,56 @@ Le miroir natif reste pilotable seul :
 .venv/bin/python -m nutshell_mcp.mirror --all           # ~24 Go compressés !
 ```
 
+## Pipeline OSM
+
+```bash
+.venv/bin/python -m nutshell_mcp.sync --source osm             # extraits configurés
+NUTSHELL_OSM_EXTRACTS=europe/luxembourg,europe/belgium \
+  .venv/bin/python -m nutshell_mcp.sync --source osm --full    # re-matérialisation complète
+```
+
+Périmètre : liste d'extraits pays Geofabrik dans `NUTSHELL_OSM_EXTRACTS`
+(`continent/pays`, séparés par des virgules). Défaut volontairement restreint à
+`europe/luxembourg` seul — jamais un extrait continental ou l'Europe entière par
+défaut (30 Go). Cadence recommandée : mensuelle (§7.4), Geofabrik republiant ses
+extraits environ à ce rythme.
+
+Séquence par synchronisation : téléchargement `httpx` en streaming de chaque
+extrait `.osm.pbf`, vérifié contre son sidecar `.md5` (le sidecar, quelques
+octets, est comparé à l'état local *avant* tout téléchargement du `.pbf`, pour
+éviter de retélécharger un extrait inchangé) ; signal de fraîcheur définitif une
+fois le fichier obtenu : `osmium fileinfo -e -g header.option.timestamp`
+(l'horodatage embarqué dans le fichier, plus fiable que le `Last-Modified` HTTP
+dépendant du CDN) ; une seule passe `osmium tags-filter` combinant les tags de
+tous les indicateurs OSM du registre ; `osmium export` en GeoJSON puis
+refiltrage DuckDB (`properties[clé]==valeur` exact) et conversion en GeoParquet
+(`mirror/osm/poi_{extrait}.parquet`) ; jointure spatiale `ST_Within` contre les
+géométries GISCO par niveau (`NUTS2`, `NUTS3`, `CITY`) avec clip transfrontalier
+(un POI n'est compté que dans une zone dont le pays correspond à celui de son
+extrait d'origine — sinon un même hôpital proche d'une frontière serait compté
+deux fois si les deux pays voisins sont ingérés) ; écriture de la partition
+canonique, zéro explicite pour toute zone du périmètre sans POI, `quality =
+"osm_completeness_unknown"` systématique, `time` et `source_date` au mois de
+l'extrait le plus récent utilisé (`AAAA-MM`).
+
+Limites connues :
+
+- **Complétude hétérogène.** La couverture OSM varie fortement d'un territoire à
+  l'autre ; c'est pourquoi `quality` porte systématiquement
+  `osm_completeness_unknown` plutôt qu'une estimation de complétude.
+- **Doublons node/way non dédupliqués.** Une même entité physique (ex. un
+  hôpital) peut être cartographiée à la fois comme nœud isolé et comme
+  empreinte de bâtiment ; aucun tag OSM standard ne relie formellement les
+  deux, et le pipeline ne tente pas de les fusionner.
+- **`railway=halt` exclu de `train_stations_count`** (arrêts sans bâtiment
+  voyageurs) : périmètre volontairement restreint à `railway=station` pour un
+  comptage "gare" reproductible plutôt qu'un mélange gare/arrêt hétérogène selon
+  les pays.
+- `.[osm]` n'installe aucune dépendance Python supplémentaire pour ce pipeline :
+  il s'appuie sur le binaire `osmium` (`brew install osmium-tool`) via
+  `subprocess`, et sur l'extension spatiale DuckDB (`INSTALL spatial`),
+  téléchargée automatiquement par DuckDB au premier usage.
+
 ## Ajouter un indicateur = un fichier YAML
 
 Aucun code. Déposer `registry/{id}.yaml` (le nom du fichier doit être l'`id`),
@@ -198,8 +248,8 @@ extraction:
 
 source: osm
 extraction:
-  tags: [{ key: amenity, value: hospital }]
-  geometry: [node, way]
+  tags: [{ key: amenity, value: hospital }]   # plusieurs paires = combinées en OU
+  geometry: [node, way, relation]             # un hôpital est souvent way ou relation
   aggregation: count
 ```
 
@@ -263,10 +313,12 @@ Alias historique conservé : `EUROSTAT_OFFLINE=1`.
 ## État et suite
 
 Lot 1 (socle unifié) livré : référentiel géographique, registre, table canonique,
-projection Eurostat, 3 tools unifiés. Restent à implémenter :
+projection Eurostat, 3 tools unifiés.
 
-- **lot 2 — OSM** : `nutshell_mcp/ingest_osm.py`, extraits Geofabrik → POI →
-  jointure spatiale DuckDB → comptages ;
+Lot 2 (OSM) livré : `nutshell_mcp/ingest_osm.py`, extraits Geofabrik → POI →
+jointure spatiale DuckDB → comptages (`hospitals_count`, `train_stations_count`,
+`schools_count`) — voir « Pipeline OSM » ci-dessus. Reste à implémenter :
+
 - **lot 3 — Copernicus** : `nutshell_mcp/ingest_cds.py`, requêtes CDS →
   agrégation temporelle xarray → statistiques zonales `exactextract` ;
 - **lot 4 — durcissement** : HTTP authentifié, recherche hybride par embeddings,

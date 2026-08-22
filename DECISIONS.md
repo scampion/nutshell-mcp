@@ -219,3 +219,143 @@ une valeur sans réserve.
 **Conséquence.** `sync.py` garde une interface unique et orthogonale
 (`--source`), tandis que `mirror.py` reste l'outil bas niveau du miroir natif,
 conformément à sa conservation demandée « comme aujourd'hui ».
+
+---
+
+## Lot 2 — OSM
+
+### ADR-L2-1. Périmètre configuré par variable d'environnement, défaut Luxembourg seul
+
+**Contexte.** §7.3 laisse le choix du périmètre (« Europe entière ~30 Go, ou par
+pays ») sans mécanisme de configuration. Deux options envisageables : variable
+d'environnement, ou fichier `osm_extracts.txt`.
+
+**Décision.** `NUTSHELL_OSM_EXTRACTS="europe/luxembourg,europe/belgium"`
+(chemins Geofabrik complets, séparés par des virgules), sur le modèle des
+autres variables du socle (`NUTSHELL_DATA_DIR`, `NUTSHELL_REGISTRY_DIR`) plutôt
+qu'un fichier dédié — un pipeline de plus qui lirait son propre fichier de
+config aurait cassé l'uniformité « tout se configure par variable
+d'environnement » déjà en place. Défaut si absente : `("europe/luxembourg",)`
+seul — jamais un extrait continental par défaut, conformément à la contrainte
+d'environnement (ne jamais déclencher un gros téléchargement par accident).
+
+**Conséquence.** `ingest_osm.configured_extracts()` est une fonction pure,
+testable sans effet de bord. Étendre le périmètre à un troisième pays ne
+touche aucun code, seulement la variable d'environnement (ou le cron qui
+l'exporte).
+
+### ADR-L2-2. Signal de fraîcheur en deux temps : md5 sidecar puis timestamp d'en-tête
+
+**Contexte.** Le spike (A1) établit que le timestamp fiable est celui embarqué
+dans l'en-tête du `.pbf` (`osmium fileinfo -e -g header.option.timestamp`), pas
+le `Last-Modified` HTTP. Mais ce timestamp n'est lisible qu'une fois le fichier
+téléchargé — potentiellement des centaines de Mo pour rien si l'extrait n'a pas
+changé.
+
+**Décision.** Le sidecar `.md5` (quelques octets) est récupéré et comparé à
+l'état local *avant* tout téléchargement du `.pbf`. Un md5 inchangé implique un
+contenu inchangé, donc un timestamp d'en-tête inchangé — le téléchargement et
+le retraitement (filtrage, jointure) sont alors sautés, et le GeoParquet POI
+déjà présent sur disque est réutilisé tel quel pour l'union multi-extraits.
+
+**Conséquence.** Rejouer `sync --source osm` sans changement côté Geofabrik ne
+retélécharge jamais l'extrait (vérifié empiriquement sur le Luxembourg réel,
+voir rapport de mission). Économie substantielle pour la Belgique (~600 Mo) à
+chaque cron mensuel où rien n'a changé.
+
+### ADR-L2-3. Clip transfrontalier par préfixe pays du `geo_code`
+
+**Contexte.** Piège n°3 du spike : un extrait pays Geofabrik déborde toujours
+un peu sur les pays voisins (POI géométriquement situés en France/Belgique/
+Allemagne dans l'extrait Luxembourg). Sans traitement, ingérer deux extraits
+limitrophes (LU + BE) compterait deux fois les POI proches de la frontière.
+
+**Décision.** Un POI d'un extrait n'est retenu que s'il tombe dans une zone dont
+le préfixe pays du `geo_code` (2 premiers caractères, convention NUTS/Eurostat)
+correspond au pays déclaré de l'extrait (`ingest_osm.GEOFABRIK_COUNTRY`, indexé
+par nom court d'extrait). Un POI qui déborde géométriquement chez le voisin
+est donc écarté par l'extrait d'origine, et n'est compté par l'extrait voisin
+que si ce dernier le possède réellement dans son propre fichier — sinon il est
+perdu, ce qui est le comportement correct (mieux vaut un POI en bordure non
+compté qu'un double comptage systématique).
+
+**Conséquence.** La convention NUTS est utilisée plutôt que l'ISO 3166-1 : la
+Grèce (`EL`, pas `GR`) et le Royaume-Uni (`UK`, pas `GB`) auraient sinon cassé
+silencieusement le clip pour ces deux pays si l'extension venait à les couvrir.
+`GEOFABRIK_COUNTRY` documente ce choix en commentaire.
+
+### ADR-L2-4. Zéro explicite pour toute zone du périmètre sans POI
+
+**Contexte.** §7.3 demande d'inclure les zones à 0 POI, distinctes des zones hors
+périmètre.
+
+**Décision.** « Périmètre » = union des pays couverts par au moins un extrait
+configuré (préfixe `geo_code`). Toute zone de ce périmètre reçoit une ligne
+(valeur 0 si aucun POI ne correspond) ; toute zone d'un pays non couvert
+n'apparaît pas du tout dans la partition.
+
+**Conséquence.** `get_indicators(["hospitals_count"], ["LU000", "BE100"])`
+renvoie une valeur pour les deux même si l'une vaut 0, alors qu'une zone
+allemande n'apparaît jamais tant qu'aucun extrait allemand n'est configuré —
+la distinction entre « aucun hôpital » et « donnée non collectée » reste
+lisible par le modèle.
+
+### ADR-L2-5. Une seule partition par indicateur, union de tous les extraits
+
+**Contexte.** `indicators.write_partition` remplace toujours la partition
+entière (pas d'append). Avec plusieurs extraits, il faut donc décider où vit
+l'agrégation multi-extraits.
+
+**Décision.** `ingest_osm.sync()` calcule les comptages de **tous** les extraits
+configurés (en relisant le GeoParquet des extraits inchangés plutôt qu'en les
+retraiter) avant un unique appel `write_partition` par indicateur. `time` et
+`source_date` du batch entier prennent le mois le plus récent parmi les
+extraits utilisés (`f"extrait {AAAA-MM}"`) — le schéma canonique ne porte
+qu'une `source_date` par écriture, pas une par ligne.
+
+**Conséquence.** La partition d'un indicateur OSM est toujours cohérente et
+complète après un `sync`, jamais un mélange de deux écritures partielles. Un
+indicateur n'est re-matérialisé que si au moins un extrait a changé (ou
+`--full`), sinon il est rapporté `unchanged` sans toucher au disque.
+
+### ADR-L2-6. `railway=halt` exclu de `train_stations_count`
+
+**Contexte.** §7.3 ne tranche pas si les arrêts sans bâtiment voyageurs
+(`railway=halt`) comptent comme des « gares ».
+
+**Décision.** Exclus. `train_stations_count` ne couvre que `railway=station`.
+
+**Conséquence.** Le nombre reste comparable à travers l'Europe (le partage
+gare/halte varie fortement par pays et n'est pas toujours cartographié de
+façon cohérente) et concorde avec la valeur de plausibilité mesurée sur le
+Luxembourg réel (~65). Un futur indicateur `railway_stops_count` (station +
+halt) pourrait être ajouté comme fichier YAML séparé sans toucher au pipeline.
+
+### ADR-L2-7. `geometry: [node, way, relation]` pour les trois indicateurs
+
+**Contexte.** Le registre initial ne déclarait que `[node, way]` pour les trois
+indicateurs OSM. Le spike a mesuré, sur le Luxembourg réel, que les hôpitaux
+sont 13 way + 2 relation (0 node), et les écoles 352 way + 34 node + 7
+relation : omettre `relation` sous-compte silencieusement.
+
+**Décision.** Les trois YAML déclarent `geometry: [node, way, relation]`, y
+compris `train_stations_count` (65 node, 0 way/relation sur le Luxembourg) par
+précaution pour d'autres pays où de grandes gares peuvent être cartographiées
+en relation.
+
+**Conséquence.** Aucun coût mesurable (une expression `osmium tags-filter` de
+plus par catégorie) ; couverture correcte dès le premier extrait ingéré.
+
+### ADR-L2-8. Doublons node/way non dédupliqués (limite connue, assumée)
+
+**Contexte.** Piège n°4 du spike : un hôpital peut être cartographié à la fois
+comme nœud isolé et comme empreinte de bâtiment ; aucun tag OSM standard ne
+relie les deux représentations.
+
+**Décision.** Aucune déduplication. Documenté en commentaire de code
+(`ingest_osm.py`, docstring de module) et dans le README.
+
+**Conséquence.** Cohérent avec `quality = "osm_completeness_unknown"`, déjà
+systématique sur tous les indicateurs OSM (§7.3) : le modèle est prévenu que
+ces comptages sont approximatifs, sans prétendre à une précision que la donnée
+source ne permet pas de garantir à ce stade.
