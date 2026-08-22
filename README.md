@@ -21,7 +21,7 @@ Document de référence : `architecture-spec-mcp-territorial.md`.
    │ Eurostat   → mirror.py       bulk TSV.gz → Parquet natif          │
    │              project_eurostat.py  → projection au grain canonique │
    │ OpenStreetMap → ingest_osm.py     (lot 2, à venir)                │
-   │ Copernicus    → ingest_cds.py     (lot 3, à venir)                │
+   │ Copernicus    → ingest_cds.py     rasters → statistiques zonales  │
    └───────────────────────────────┬───────────────────────────────────┘
                                    ▼
    STOCKAGE (local, rsyncable)
@@ -160,6 +160,108 @@ Le miroir natif reste pilotable seul :
 .venv/bin/python -m nutshell_mcp.mirror --all           # ~24 Go compressés !
 ```
 
+## Pipeline Copernicus
+
+```bash
+# Cadence recommandée : hebdomadaire (les produits sont annuels, la file CDS est lente)
+.venv/bin/python -m nutshell_mcp.sync --source copernicus --indicators lst_summer_mean
+```
+
+Le pipeline transforme un raster en lignes canoniques : acquisition et agrégation
+temporelle (`temporal_agg`), recalage en EPSG:4326, statistiques zonales
+`exactextract` contre les géométries GISCO de chaque niveau déclaré, écriture de
+la partition, **purge du raster brut** (le poste le plus lourd est jetable).
+Le raster n'est jamais conservé, seuls les agrégats le sont — quelques centaines
+de kilo-octets par indicateur.
+
+### Trois fournisseurs de rasters
+
+`NUTSHELL_CDS_PROVIDER` impose la provenance pour tout le lot. Sans consigne,
+elle est déduite du `product` du registre : une réanalyse ERA5 va vers `cds` si
+`~/.cdsapirc` existe et vers `arco` sinon, tout autre produit vers `local`.
+
+| fournisseur | source | clé | qualité |
+|---|---|---|---|
+| `cds` | `cdsapi`, dataset `reanalysis-era5-land-monthly-means` | oui | exacte |
+| `arco` | zarr public ARCO-ERA5 sur GCS, accès anonyme | non | `sampled` |
+| `local` | GeoTIFF déposé à la main | non | exacte |
+
+**`cds` — la voie officielle.** Créer un compte sur
+<https://cds.climate.copernicus.eu>, récupérer le jeton personnel sur la page
+profil, puis écrire `~/.cdsapirc` :
+
+```
+url: https://cds.climate.copernicus.eu/api
+key: <JETON-PERSONNEL>
+```
+
+Accepter aussi les conditions d'utilisation du dataset **sur sa page web** :
+sans cela `retrieve()` échoue. Les files d'attente CDS durent des heures : le
+pipeline soumet toutes les requêtes du lot d'abord, persiste les identifiants de
+requête dans `sync_state`, puis collecte — une interruption ne re-soumet rien.
+
+**`arco` — le repli sans clé.** Lecture anonyme de
+`gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3`. Le store
+est chunké par pas de temps global : **une requête réseau par heure demandée**,
+3 à 9 s chacune, quel que soit le sous-ensemble spatial. Une moyenne JJA horaire
+exacte (2208 pas) prendrait des heures. Le fournisseur échantillonne donc
+`NUTSHELL_ARCO_SAMPLES_PER_MONTH` pas de temps par mois (défaut 4, aux heures
+synoptiques 00/06/12/18 sur des jours répartis) et marque le résultat
+`quality = "sampled"` : c'est une **estimation**, pas la moyenne climatologique.
+Coût mesuré : ~1 min pour un été (12 pas de temps) sur LU + BE + FR,
+281 zones NUTS2/NUTS3/CITY.
+
+**`local` — la voie CLMS.** Le Copernicus Land Monitoring Service exige une
+authentification que le pipeline ne porte pas : c'est le chemin prévu pour
+`imperviousness_share`. Télécharger le raster depuis
+<https://land.copernicus.eu/en/products/high-resolution-layer-imperviousness>,
+le reprojeter si besoin (`gdalwarp -t_srs EPSG:4326 …`) et le déposer sous
+`NUTSHELL_RASTER_DIR/{indicateur}/{année}.tif`. Le pipeline fait le reste. En
+son absence, l'erreur nomme le chemin attendu et l'URL de téléchargement.
+
+### Configuration
+
+| variable | rôle | défaut |
+|---|---|---|
+| `NUTSHELL_CDS_PROVIDER` | `cds` \| `arco` \| `local` | `cds` si clé, sinon `arco` |
+| `NUTSHELL_CDS_YEARS` | `2023`, `2020,2023`, `2020-2023` | dernière année complète |
+| `NUTSHELL_CDS_COUNTRIES` | périmètre spatial, ex. `LU,BE,FR` | tout le référentiel |
+| `NUTSHELL_ARCO_SAMPLES_PER_MONTH` | pas de temps échantillonnés par mois | `4` |
+| `NUTSHELL_RASTER_DIR` | racine des rasters du fournisseur `local` | `{données}/rasters` |
+| `NUTSHELL_CDS_KEEP_RASTERS` | conserve les rasters intermédiaires (debug) | purge |
+| `NUTSHELL_CDS_TIMEOUT` / `NUTSHELL_CDS_POLL` | attente et scrutation CDS (s) | `3600` / `30` |
+
+`NUTSHELL_CDS_COUNTRIES` est le levier de coût : sans lui, l'emprise couvre tout
+le référentiel GISCO (y compris les régions ultrapériphériques, de la Guadeloupe
+à La Réunion), soit une requête CDS beaucoup plus lourde et quelques milliers de
+zones à agréger.
+
+```bash
+NUTSHELL_CDS_PROVIDER=arco NUTSHELL_CDS_COUNTRIES=LU,BE,FR NUTSHELL_CDS_YEARS=2023 \
+  .venv/bin/python -m nutshell_mcp.sync --source copernicus --indicators lst_summer_mean
+```
+
+```
+[copernicus] 1 mis à jour, 0 inchangés, 0 échecs
+  ✓ lst_summer_mean (281 lignes, années 2023)
+  · périmètre LU, BE, FR : 281 zones sur 3 niveau(x), emprise -63.2/-21.4 → 55.8/51.5
+  · fournisseur 'arco'
+  · lst_summer_mean 2023 : 12 pas de temps échantillonnés
+```
+
+Le signal de fraîcheur est la dernière année matérialisée
+(`sync_state("copernicus", "{id}:last_year")`) : une année déjà présente n'est
+pas recalculée, les années antérieures sont relues et conservées. `--full`
+ignore ce signal.
+
+### Qualité des valeurs
+
+`sampled` (estimation échantillonnée, fournisseur `arco`) et `partial_coverage`
+(la zone n'est pas entièrement couverte par le raster : bord d'emprise, maille
+sans donnée) apparaissent entre crochets dans `get_indicators`. Les températures
+sont converties de kelvins en degrés Celsius pour respecter l'unité `DEG_C` du
+registre.
+
 ## Ajouter un indicateur = un fichier YAML
 
 Aucun code. Déposer `registry/{id}.yaml` (le nom du fichier doit être l'`id`),
@@ -209,7 +311,8 @@ matérialisé, `get_indicators` renvoie la commande de sync à lancer.
 
 Registre livré : `gdp_per_capita`, `unemployment_rate`, `population`,
 `median_age`, `old_age_dependency` (Eurostat, matérialisables) ;
-`lst_summer_mean`, `imperviousness_share` (Copernicus, lot 3) ;
+`lst_summer_mean` (Copernicus, matérialisable), `imperviousness_share`
+(Copernicus, raster CLMS à déposer — voir *Pipeline Copernicus*) ;
 `hospitals_count`, `train_stations_count`, `schools_count` (OSM, lot 2).
 
 ## Layout des données
@@ -263,12 +366,15 @@ Alias historique conservé : `EUROSTAT_OFFLINE=1`.
 ## État et suite
 
 Lot 1 (socle unifié) livré : référentiel géographique, registre, table canonique,
-projection Eurostat, 3 tools unifiés. Restent à implémenter :
+projection Eurostat, 3 tools unifiés. Lot 3 (Copernicus) livré :
+`nutshell_mcp/ingest_cds.py`, trois fournisseurs de rasters, statistiques zonales
+`exactextract`. Restent à implémenter :
 
 - **lot 2 — OSM** : `nutshell_mcp/ingest_osm.py`, extraits Geofabrik → POI →
   jointure spatiale DuckDB → comptages ;
-- **lot 3 — Copernicus** : `nutshell_mcp/ingest_cds.py`, requêtes CDS →
-  agrégation temporelle xarray → statistiques zonales `exactextract` ;
+- **lot 3, reste à faire** : brancher une vraie clé CDS (le chemin `cdsapi` est
+  implémenté et testé par mock, jamais exécuté contre le service réel) et
+  déposer le raster CLMS d'imperméabilisation ;
 - **lot 4 — durcissement** : HTTP authentifié, recherche hybride par embeddings,
   indicateurs dérivés (densités, distances), conversion complète des millésimes.
 
