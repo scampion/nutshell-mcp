@@ -372,7 +372,9 @@ def test_sync_luxembourg_reel(data_dir, monkeypatch: pytest.MonkeyPatch):
 
     columns, rows, provenance = indicators.query(["hospitals_count"], ["LU000"])
     assert rows, "aucune ligne pour LU000 : la jointure spatiale a échoué"
-    value = int(rows[0][columns.index("hospitals_count")])
+    cell = rows[0][columns.index("hospitals_count")]
+    assert cell.endswith("[osm_completeness_unknown]"), cell
+    value = int(cell.split(" ", 1)[0])
     assert 5 <= value <= 30, f"nombre d'hôpitaux LU implausible : {value}"
     assert provenance["hospitals_count"]["source"] == "osm"
     assert provenance["hospitals_count"]["source_date"].startswith("extrait ")
