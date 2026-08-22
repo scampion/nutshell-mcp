@@ -1,0 +1,17 @@
+id: train_stations_count
+label: "Gares ferroviaires (comptage OSM)"
+unit: COUNT
+source: osm
+frequency: SNAPSHOT
+geo_levels: [NUTS2, NUTS3, CITY]
+nuts_vintage: 2024
+description: >-
+  Nombre d'objets OpenStreetMap tagués railway=station dans la zone.
+  Indicateur d'accessibilité ferroviaire. Matérialisé par le pipeline OSM
+  (lot 2).
+extraction:
+  tags:
+    - key: railway
+      value: station
+  geometry: [node, way]
+  aggregation: count

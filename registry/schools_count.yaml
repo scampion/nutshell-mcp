@@ -1,0 +1,16 @@
+id: schools_count
+label: "Établissements scolaires (comptage OSM)"
+unit: COUNT
+source: osm
+frequency: SNAPSHOT
+geo_levels: [NUTS2, NUTS3, CITY]
+nuts_vintage: 2024
+description: >-
+  Nombre d'objets OpenStreetMap tagués amenity=school dans la zone.
+  Matérialisé par le pipeline OSM (lot 2).
+extraction:
+  tags:
+    - key: amenity
+      value: school
+  geometry: [node, way]
+  aggregation: count

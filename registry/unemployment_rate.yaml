@@ -1,0 +1,19 @@
+id: unemployment_rate
+label: "Taux de chômage, 15-74 ans"
+unit: PC
+source: eurostat
+frequency: A
+geo_levels: [NUTS0, NUTS1, NUTS2]
+nuts_vintage: 2024
+description: >-
+  Part des chômeurs dans la population active de 15 à 74 ans, tous niveaux
+  d'éducation et sexes confondus, enquête forces de travail.
+extraction:
+  dataset: lfst_r_lfu3rt
+  filters:
+    freq: A
+    isced11: TOTAL
+    sex: T
+    age: Y15-74
+    unit: PC
+  value_dim: geo

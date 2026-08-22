@@ -1,0 +1,17 @@
+id: median_age
+label: "Âge médian de la population"
+unit: YR
+source: eurostat
+frequency: A
+geo_levels: [NUTS0, NUTS1, NUTS2, NUTS3]
+nuts_vintage: 2024
+description: >-
+  Âge qui partage la population résidente en deux effectifs égaux. Mesure de
+  vieillissement territorial, complémentaire du ratio de dépendance.
+extraction:
+  dataset: demo_r_pjanind3
+  filters:
+    freq: A
+    indic_de: MEDAGEPOP
+    unit: YR
+  value_dim: geo

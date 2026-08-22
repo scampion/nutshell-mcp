@@ -1,0 +1,18 @@
+id: lst_summer_mean
+label: "Température de surface moyenne, juin-août"
+unit: DEG_C
+source: copernicus
+frequency: A
+geo_levels: [NUTS2, NUTS3, CITY]
+nuts_vintage: 2024
+description: >-
+  Moyenne estivale de la température de peau ERA5-Land, agrégée par zone en
+  statistique zonale pondérée par la surface couverte. Matérialisé par le
+  pipeline Copernicus (lot 3).
+extraction:
+  product: reanalysis-era5-land
+  variable: skin_temperature
+  temporal_agg:
+    months: [6, 7, 8]
+    stat: mean
+  zonal_stat: mean

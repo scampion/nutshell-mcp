@@ -1,0 +1,18 @@
+id: imperviousness_share
+label: "Part des sols imperméabilisés"
+unit: PC
+source: copernicus
+frequency: A
+geo_levels: [NUTS2, NUTS3, CITY]
+nuts_vintage: 2024
+description: >-
+  Part de la surface de la zone couverte par des sols artificialisés
+  imperméables (Copernicus Land Monitoring Service, densité
+  d'imperméabilisation). Matérialisé par le pipeline Copernicus (lot 3).
+extraction:
+  product: imperviousness-density
+  variable: imperviousness_density
+  temporal_agg:
+    months: []
+    stat: mean
+  zonal_stat: mean

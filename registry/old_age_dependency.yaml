@@ -1,0 +1,17 @@
+id: old_age_dependency
+label: "Ratio de dépendance des personnes âgées (65 ans et plus / 15-64 ans)"
+unit: PC
+source: eurostat
+frequency: A
+geo_levels: [NUTS0, NUTS1, NUTS2, NUTS3]
+nuts_vintage: 2024
+description: >-
+  Population de 65 ans et plus rapportée à la population de 15 à 64 ans.
+  Indicateur de pression sur les services de santé et de soin.
+extraction:
+  dataset: demo_r_pjanind3
+  filters:
+    freq: A
+    indic_de: OLDDEP1
+    unit: PC
+  value_dim: geo

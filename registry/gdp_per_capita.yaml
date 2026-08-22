@@ -1,0 +1,17 @@
+id: gdp_per_capita
+label: "PIB par habitant (prix courants)"
+unit: EUR_HAB
+source: eurostat
+frequency: A
+geo_levels: [NUTS0, NUTS1, NUTS2]
+nuts_vintage: 2024
+description: >-
+  Produit intérieur brut régional aux prix courants du marché, rapporté à la
+  population. Indicateur de richesse produite ; à croiser avec le chômage et
+  la démographie pour un diagnostic de décrochage régional.
+extraction:
+  dataset: nama_10r_2gdp
+  filters:
+    freq: A
+    unit: EUR_HAB
+  value_dim: geo

@@ -1,0 +1,18 @@
+id: population
+label: "Population au 1er janvier"
+unit: NR
+source: eurostat
+frequency: A
+geo_levels: [NUTS0, NUTS1, NUTS2, NUTS3]
+nuts_vintage: 2024
+description: >-
+  Population totale résidente au 1er janvier, tous âges et sexes confondus.
+  Dénominateur usuel des indicateurs de densité et d'équipement.
+extraction:
+  dataset: demo_r_pjanaggr3
+  filters:
+    freq: A
+    unit: NR
+    sex: T
+    age: TOTAL
+  value_dim: geo

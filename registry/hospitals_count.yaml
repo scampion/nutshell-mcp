@@ -1,0 +1,18 @@
+id: hospitals_count
+label: "Hôpitaux (comptage OSM)"
+unit: COUNT
+source: osm
+frequency: SNAPSHOT
+geo_levels: [NUTS2, NUTS3, CITY]
+nuts_vintage: 2024
+description: >-
+  Nombre d'objets OpenStreetMap tagués amenity=hospital dans la zone. La
+  complétude d'OSM varie fortement selon les territoires : les valeurs sont
+  systématiquement marquées osm_completeness_unknown. Matérialisé par le
+  pipeline OSM (lot 2).
+extraction:
+  tags:
+    - key: amenity
+      value: hospital
+  geometry: [node, way]
+  aggregation: count
