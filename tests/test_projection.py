@@ -117,10 +117,12 @@ def test_indicators_for_dataset(data_dir, registry_dir):
 # ------------------------------------------------------------------ sync.py
 
 def test_pipeline_non_implemente(data_dir, registry_dir):
-    report = sync.sync_pipeline("osm", registry.load_all(source="osm"), full=False)
+    # Lot 2 (OSM) est livré depuis nutshell_mcp/ingest_osm.py : ce test cible
+    # désormais le lot 3 (Copernicus), toujours non livré dans cette base.
+    report = sync.sync_pipeline("copernicus", [], full=False)
     assert report.ok  # un lot non livré n'est pas un échec
-    assert "pipeline non implémenté (lot 2)" in "\n".join(report.notes)
-    assert "nutshell_mcp.ingest_osm" in "\n".join(report.notes)
+    assert "pipeline non implémenté (lot 3)" in "\n".join(report.notes)
+    assert "nutshell_mcp.ingest_cds" in "\n".join(report.notes)
 
 
 def test_sync_report_rendu():
