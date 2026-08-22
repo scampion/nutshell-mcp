@@ -17,8 +17,8 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from territorial_mcp import config, geo, indicators, registry
-from territorial_mcp import ingest_osm as osm
+from nutshell_mcp import config, geo, indicators, registry
+from nutshell_mcp import ingest_osm as osm
 
 HAS_OSMIUM = shutil.which("osmium") is not None
 
@@ -62,13 +62,23 @@ def _write_nuts3_geometries(path: Path) -> None:
         },
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+    payload = {"type": "FeatureCollection", "features": features}
+    path.write_text(json.dumps(payload), encoding="utf-8")
 
 
 @pytest.fixture
 def zones_nuts3(data_dir: Path) -> Path:
-    """Géométries NUTS3 synthétiques à l'emplacement attendu par `geo.geometry_path`."""
+    """Géométries + table `geo` NUTS3 synthétiques : LU000, BE100, BE200, FR101."""
     _write_nuts3_geometries(geo.geometry_path("NUTS3"))
+    rows = [
+        ("LU000", "NUTS3", "Luxembourg", "LU0", 2024, "LU"),
+        ("BE100", "NUTS3", "Bruxelles", "BE1", 2024, "BE"),
+        ("BE200", "NUTS3", "Anvers", "BE2", 2024, "BE"),
+        ("FR101", "NUTS3", "Paris", "FR10", 2024, "FR"),
+    ]
+    with geo._conn() as conn:
+        conn.execute("DELETE FROM geo WHERE level = 'NUTS3'")
+        conn.executemany("INSERT INTO geo VALUES (?,?,?,?,?,?)", rows)
     return data_dir
 
 
@@ -242,19 +252,20 @@ def test_ecriture_partition_depuis_agregation(zones_nuts3, hospitals_spec):
 
     columns, out, provenance = indicators.query(["hospitals_count"], ["LU000"])
     assert columns == ["geo_code", "time", "hospitals_count"]
-    assert out == [["LU000", "2026-08", "1"]]
+    # Le flag qualité (systématique pour OSM, §7.3) est reporté dans la cellule pivotée.
+    assert out == [["LU000", "2026-08", "1 [osm_completeness_unknown]"]]
     assert provenance["hospitals_count"]["source"] == "osm"
 
 
 # --------------------------------------------------------------------- config
 
 def test_configured_extracts_defaut(data_dir, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("TERRITORIAL_OSM_EXTRACTS", raising=False)
+    monkeypatch.delenv("NUTSHELL_OSM_EXTRACTS", raising=False)
     assert osm.configured_extracts() == ["europe/luxembourg"]
 
 
 def test_configured_extracts_env(data_dir, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("TERRITORIAL_OSM_EXTRACTS", " europe/luxembourg, europe/belgium ,")
+    monkeypatch.setenv("NUTSHELL_OSM_EXTRACTS", " europe/luxembourg, europe/belgium ,")
     assert osm.configured_extracts() == ["europe/luxembourg", "europe/belgium"]
 
 
@@ -297,19 +308,19 @@ def test_sync_sans_osmium_echoue_proprement(
 
 
 def test_sync_extract_hors_ligne_sans_cache_leve(data_dir, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("TERRITORIAL_OFFLINE", "1")
+    monkeypatch.setenv("NUTSHELL_OFFLINE", "1")
     with pytest.raises(RuntimeError, match="hors ligne"):
         osm._sync_extract(
             "europe/luxembourg", full=False, tag_exprs=[], tag_pairs=[],
-            report=__import__("territorial_mcp.sync", fromlist=["SyncReport"]).SyncReport("osm"),
+            report=__import__("nutshell_mcp.sync", fromlist=["SyncReport"]).SyncReport("osm"),
         )
 
 
 def test_sync_extract_hors_ligne_avec_cache_reutilise(
     data_dir, monkeypatch: pytest.MonkeyPatch
 ):
-    from territorial_mcp import store
-    from territorial_mcp.sync import SyncReport
+    from nutshell_mcp import store
+    from nutshell_mcp.sync import SyncReport
 
     poi_path = config.mirror_dir() / "osm" / "poi_luxembourg.parquet"
     poi_path.parent.mkdir(parents=True, exist_ok=True)
@@ -317,7 +328,7 @@ def test_sync_extract_hors_ligne_avec_cache_reutilise(
     store.set_sync_state("osm", "extract:luxembourg:md5", "deadbeef")
     store.set_sync_state("osm", "extract:luxembourg:timestamp", "2026-08-21T20:21:11Z")
 
-    monkeypatch.setenv("TERRITORIAL_OFFLINE", "1")
+    monkeypatch.setenv("NUTSHELL_OFFLINE", "1")
     report = SyncReport("osm")
     info = osm._sync_extract(
         "europe/luxembourg", full=False, tag_exprs=[], tag_pairs=[], report=report
@@ -334,7 +345,7 @@ def test_sync_extract_hors_ligne_avec_cache_reutilise(
 @pytest.mark.skipif(not HAS_OSMIUM, reason="osmium-tool absent du PATH")
 def test_sync_luxembourg_reel(data_dir, monkeypatch: pytest.MonkeyPatch):
     """Bout en bout sur le vrai extrait Luxembourg (~47 Mo, téléchargé une fois)."""
-    monkeypatch.setenv("TERRITORIAL_OSM_EXTRACTS", "europe/luxembourg")
+    monkeypatch.setenv("NUTSHELL_OSM_EXTRACTS", "europe/luxembourg")
     directory = config.data_dir() / "registry"
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "hospitals_count.yaml").write_text(
@@ -352,7 +363,7 @@ def test_sync_luxembourg_reel(data_dir, monkeypatch: pytest.MonkeyPatch):
         """),
         encoding="utf-8",
     )
-    monkeypatch.setenv("TERRITORIAL_REGISTRY_DIR", str(directory))
+    monkeypatch.setenv("NUTSHELL_REGISTRY_DIR", str(directory))
     geo.ingest()  # référentiel geo réel (réseau, mais léger : NUTS3 Europe)
     specs = registry.load_all(source="osm")
 
