@@ -173,6 +173,30 @@ def _table(columns: list[str], rows: list[list[str]]) -> list[str]:
     return [" | ".join(columns)] + [" | ".join(r) for r in rows]
 
 
+#: Profondeur de chaque niveau, et longueur du code NUTS correspondant.
+_LEVEL_DEPTH = {"NUTS0": 0, "NUTS1": 1, "NUTS2": 2, "NUTS3": 3, "CITY": 4}
+_CODE_LENGTH = {"NUTS0": 2, "NUTS1": 3, "NUTS2": 4, "NUTS3": 5}
+
+
+def _level_hint(zone: dict, levels: list[str]) -> str:
+    """Action corrective quand une zone n'est pas au bon niveau pour un indicateur.
+
+    Si l'indicateur existe à un niveau plus fin, on propose de descendre sous la
+    zone ; sinon on propose le code ancêtre au niveau le plus fin disponible.
+    """
+    depth = _LEVEL_DEPTH.get(zone["level"], 0)
+    finer = [lvl for lvl in levels if _LEVEL_DEPTH.get(lvl, 0) > depth]
+    if finer:
+        target = min(finer, key=lambda lvl: _LEVEL_DEPTH[lvl])
+        return f'utilisez list_zones("{target}", parent="{zone["geo_code"]}")'
+    coarser = max(levels, key=lambda lvl: _LEVEL_DEPTH.get(lvl, 0))
+    length = _CODE_LENGTH.get(coarser)
+    code = zone["geo_code"]
+    if length and len(code) > length and zone["level"] != "CITY":
+        return f"demandez la zone englobante '{code[:length]}' (niveau {coarser})"
+    return f'utilisez list_zones("{coarser}")'
+
+
 # ------------------------------------------------------------------- tools
 
 @mcp.tool()
@@ -317,13 +341,11 @@ async def get_indicators(
         incompatible = [z for z in resolved if z["level"] not in levels]
         if incompatible:
             bad = incompatible[0]
-            fallback = min(levels)
             return (
                 f"'{spec.id}' n'existe pas au niveau {bad['level']} "
                 f"(zone '{bad['geo_code']}') ; niveaux disponibles : "
                 f"{', '.join(spec.geo_levels)}.\n"
-                f"Séparez la requête ou utilisez "
-                f"list_zones(\"{fallback}\", parent=\"{bad['geo_code']}\")."
+                f"Séparez la requête ou {_level_hint(bad, spec.geo_levels)}."
             )
 
     # -- matérialisation
