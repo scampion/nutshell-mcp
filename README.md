@@ -1,4 +1,4 @@
-# territorial-mcp
+# nutshell-mcp — *Europe in a nutshell*
 
 Serveur MCP de données territoriales européennes — Eurostat, Copernicus et
 OpenStreetMap ramenés à un grain unique **zone × indicateur × période**, servi
@@ -15,7 +15,7 @@ Document de référence : `architecture-spec-mcp-territorial.md`.
 ## Architecture
 
 ```
-   INGESTION (en ligne, planifiée)          python -m territorial_mcp.sync
+   INGESTION (en ligne, planifiée)          python -m nutshell_mcp.sync
    ┌───────────────────────────────────────────────────────────────────┐
    │ GISCO      → geo.py          géométries NUTS/villes + table geo   │
    │ Eurostat   → mirror.py       bulk TSV.gz → Parquet natif          │
@@ -33,7 +33,7 @@ Document de référence : `architecture-spec-mcp-territorial.md`.
    │ registry/*.yaml            définitions d'indicateurs (versionné)  │
    └───────────────────────────────┬───────────────────────────────────┘
                                    ▼
-   SERVICE (offline)                        python -m territorial_mcp.server
+   SERVICE (offline)                        python -m nutshell_mcp.server
    ┌───────────────────────────────────────────────────────────────────┐
    │ couche unifiée : search_indicators, list_zones, get_indicators    │
    │ grain natif    : search_datasets, get_structure, list_codes,      │
@@ -50,8 +50,8 @@ des APIs sources n'affecte jamais une conversation en cours.
 uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python -e ".[dev]"
 
-.venv/bin/python -m territorial_mcp.server                      # stdio
-MCP_TRANSPORT=http .venv/bin/python -m territorial_mcp.server   # streamable HTTP
+.venv/bin/python -m nutshell_mcp.server                      # stdio
+MCP_TRANSPORT=http .venv/bin/python -m nutshell_mcp.server   # streamable HTTP
 ```
 
 Extras optionnels, nécessaires aux seuls pipelines d'ingestion correspondants :
@@ -62,11 +62,11 @@ Config client MCP (stdio) :
 ```json
 {
   "mcpServers": {
-    "territorial": {
+    "nutshell": {
       "command": "python",
-      "args": ["-m", "territorial_mcp.server"],
-      "cwd": "/chemin/vers/territorial-mcp",
-      "env": { "TERRITORIAL_OFFLINE": "1" }
+      "args": ["-m", "nutshell_mcp.server"],
+      "cwd": "/chemin/vers/nutshell-mcp",
+      "env": { "NUTSHELL_OFFLINE": "1" }
     }
   }
 }
@@ -123,7 +123,7 @@ disponibles : NUTS0, NUTS1, NUTS2.
 Séparez la requête ou demandez la zone englobante 'FR10' (niveau NUTS2).
 
 Indicateur 'lst_summer_mean' non matérialisé et mode offline actif.
-Lancer : python -m territorial_mcp.sync --source copernicus --indicators lst_summer_mean
+Lancer : python -m nutshell_mcp.sync --source copernicus --indicators lst_summer_mean
 ```
 
 Note pour Qwen3.8-27B : forcer un niveau de raisonnement moyen/bas (le défaut
@@ -133,16 +133,16 @@ Note pour Qwen3.8-27B : forcer un niveau de raisonnement moyen/bas (le défaut
 
 ```bash
 # Référentiel géographique (mensuel) — 18 fichiers GISCO, ~173 Mo
-.venv/bin/python -m territorial_mcp.sync --source geo
+.venv/bin/python -m nutshell_mcp.sync --source geo
 
 # Indicateurs Eurostat du registre (quotidien) — TOC-driven, idempotent
-.venv/bin/python -m territorial_mcp.sync --source eurostat
+.venv/bin/python -m nutshell_mcp.sync --source eurostat
 
 # Un indicateur précis
-.venv/bin/python -m territorial_mcp.sync --source eurostat --indicators gdp_per_capita
+.venv/bin/python -m nutshell_mcp.sync --source eurostat --indicators gdp_per_capita
 
 # Tout, en ignorant les signaux de fraîcheur
-.venv/bin/python -m territorial_mcp.sync --source all --full
+.venv/bin/python -m nutshell_mcp.sync --source all --full
 ```
 
 Idempotent, conçu pour un cron. Chaque source publie un signal de fraîcheur
@@ -154,10 +154,10 @@ jour / inchangés / échecs.
 Le miroir natif reste pilotable seul :
 
 ```bash
-.venv/bin/python -m territorial_mcp.mirror --datasets nama_10_gdp,une_rt_m
-.venv/bin/python -m territorial_mcp.mirror --resync        # TOC-driven
-.venv/bin/python -m territorial_mcp.mirror --project-only  # reprojette, zéro réseau
-.venv/bin/python -m territorial_mcp.mirror --all           # ~24 Go compressés !
+.venv/bin/python -m nutshell_mcp.mirror --datasets nama_10_gdp,une_rt_m
+.venv/bin/python -m nutshell_mcp.mirror --resync        # TOC-driven
+.venv/bin/python -m nutshell_mcp.mirror --project-only  # reprojette, zéro réseau
+.venv/bin/python -m nutshell_mcp.mirror --all           # ~24 Go compressés !
 ```
 
 ## Ajouter un indicateur = un fichier YAML
@@ -182,8 +182,8 @@ extraction:                   # section propre à la source déclarée
 ```
 
 ```bash
-.venv/bin/python -m territorial_mcp.registry validate     # à mettre en CI
-.venv/bin/python -m territorial_mcp.sync --source eurostat --indicators gdp_per_capita
+.venv/bin/python -m nutshell_mcp.registry validate     # à mettre en CI
+.venv/bin/python -m nutshell_mcp.sync --source eurostat --indicators gdp_per_capita
 ```
 
 Sections `extraction` des autres sources :
@@ -214,7 +214,7 @@ Registre livré : `gdp_per_capita`, `unemployment_rate`, `population`,
 
 ## Layout des données
 
-Tout est relatif à `TERRITORIAL_DATA_DIR` (défaut : racine du dépôt).
+Tout est relatif à `NUTSHELL_DATA_DIR` (défaut : racine du dépôt).
 
 ```
 mirror/eurostat/{dataset}.parquet          grain natif (dims…, time, value, flag)
@@ -241,7 +241,7 @@ natif thématique 1-2 Go (24 Go pour l'intégralité du catalogue) ; table canon
 ## Mode offline
 
 ```bash
-TERRITORIAL_OFFLINE=1 .venv/bin/python -m territorial_mcp.server
+NUTSHELL_OFFLINE=1 .venv/bin/python -m nutshell_mcp.server
 ```
 
 Aucun appel réseau : catalogue, structures et données servis depuis le disque
@@ -265,13 +265,13 @@ Alias historique conservé : `EUROSTAT_OFFLINE=1`.
 Lot 1 (socle unifié) livré : référentiel géographique, registre, table canonique,
 projection Eurostat, 3 tools unifiés. Restent à implémenter :
 
-- **lot 2 — OSM** : `territorial_mcp/ingest_osm.py`, extraits Geofabrik → POI →
+- **lot 2 — OSM** : `nutshell_mcp/ingest_osm.py`, extraits Geofabrik → POI →
   jointure spatiale DuckDB → comptages ;
-- **lot 3 — Copernicus** : `territorial_mcp/ingest_cds.py`, requêtes CDS →
+- **lot 3 — Copernicus** : `nutshell_mcp/ingest_cds.py`, requêtes CDS →
   agrégation temporelle xarray → statistiques zonales `exactextract` ;
 - **lot 4 — durcissement** : HTTP authentifié, recherche hybride par embeddings,
   indicateurs dérivés (densités, distances), conversion complète des millésimes.
 
 Chaque module d'ingestion expose `sync(specs, full) -> SyncReport` et n'écrit
 jamais de Parquet lui-même : le contrat exact est documenté en tête de
-`territorial_mcp/sync.py` et `territorial_mcp/indicators.py`.
+`nutshell_mcp/sync.py` et `nutshell_mcp/indicators.py`.

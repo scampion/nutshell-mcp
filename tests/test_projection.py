@@ -6,7 +6,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from territorial_mcp import config, geo, indicators, project_eurostat, registry, sync
+from nutshell_mcp import config, geo, indicators, project_eurostat, registry, sync
 
 
 def _write_native(dataset: str, rows: list[tuple]) -> None:
@@ -120,7 +120,7 @@ def test_pipeline_non_implemente(data_dir, registry_dir):
     report = sync.sync_pipeline("osm", registry.load_all(source="osm"), full=False)
     assert report.ok  # un lot non livré n'est pas un échec
     assert "pipeline non implémenté (lot 2)" in "\n".join(report.notes)
-    assert "territorial_mcp.ingest_osm" in "\n".join(report.notes)
+    assert "nutshell_mcp.ingest_osm" in "\n".join(report.notes)
 
 
 def test_sync_report_rendu():

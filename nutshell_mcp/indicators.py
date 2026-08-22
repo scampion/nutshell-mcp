@@ -28,7 +28,7 @@ Un pipeline n'écrit jamais de Parquet lui-même : il appelle
 
 .. code-block:: python
 
-    from territorial_mcp import indicators, registry
+    from nutshell_mcp import indicators, registry
 
     spec = registry.get("hospitals_count")
     rows = [
@@ -170,7 +170,7 @@ def write_partition(
 ) -> int:
     """Écrit (ou remplace) la partition d'un indicateur, atomiquement.
 
-    ``spec`` est un indicateur du registre (voir :mod:`territorial_mcp.registry`).
+    ``spec`` est un indicateur du registre (voir :mod:`nutshell_mcp.registry`).
     Les colonnes obligatoires côté pipeline sont ``geo_code``, ``time`` et
     ``value`` ; ``quality`` est optionnelle. Renvoie le nombre de lignes écrites.
     """

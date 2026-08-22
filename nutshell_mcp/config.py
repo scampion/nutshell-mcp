@@ -2,19 +2,19 @@
 
 Tout le paquet passe par ce module : aucun autre fichier ne construit de chemin
 en dur. Les valeurs sont lues à chaque appel (fonctions, pas de constantes) pour
-que les tests puissent basculer `TERRITORIAL_DATA_DIR` vers un `tmp_path` sans
+que les tests puissent basculer `NUTSHELL_DATA_DIR` vers un `tmp_path` sans
 réimporter le paquet.
 
 Variables d'environnement
 -------------------------
-``TERRITORIAL_DATA_DIR``
+``NUTSHELL_DATA_DIR``
     Racine des données (défaut : racine du dépôt). Contient ``mirror/``,
     ``eurostat.db`` et ``work/``.
-``TERRITORIAL_REGISTRY_DIR``
+``NUTSHELL_REGISTRY_DIR``
     Répertoire des YAML d'indicateurs (défaut : ``registry/`` du dépôt). Le
     registre est du code versionné, pas de la donnée : il ne suit pas
-    ``TERRITORIAL_DATA_DIR`` sauf demande explicite.
-``TERRITORIAL_OFFLINE=1`` (alias historique ``EUROSTAT_OFFLINE=1``)
+    ``NUTSHELL_DATA_DIR`` sauf demande explicite.
+``NUTSHELL_OFFLINE=1`` (alias historique ``EUROSTAT_OFFLINE=1``)
     Verrouille le service sur le disque : aucun appel réseau.
 
 Layout des données
@@ -31,7 +31,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-#: Racine du dépôt (parent du paquet). Sert de défaut à ``TERRITORIAL_DATA_DIR``.
+#: Racine du dépôt (parent du paquet). Sert de défaut à ``NUTSHELL_DATA_DIR``.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 #: Millésime NUTS courant du système (§4).
@@ -46,7 +46,7 @@ DISPLAY_RESOLUTION = "10M"
 
 def data_dir() -> Path:
     """Racine des données locales."""
-    raw = os.environ.get("TERRITORIAL_DATA_DIR")
+    raw = os.environ.get("NUTSHELL_DATA_DIR")
     return Path(raw).expanduser().resolve() if raw else REPO_ROOT
 
 
@@ -82,14 +82,14 @@ def work_dir() -> Path:
 
 def registry_dir() -> Path:
     """Répertoire des définitions d'indicateurs (``registry/*.yaml``)."""
-    raw = os.environ.get("TERRITORIAL_REGISTRY_DIR")
+    raw = os.environ.get("NUTSHELL_REGISTRY_DIR")
     return Path(raw).expanduser().resolve() if raw else REPO_ROOT / "registry"
 
 
 def offline() -> bool:
     """Vrai si le mode offline total est actif (aucun appel réseau autorisé)."""
     return (
-        os.environ.get("TERRITORIAL_OFFLINE") == "1"
+        os.environ.get("NUTSHELL_OFFLINE") == "1"
         or os.environ.get("EUROSTAT_OFFLINE") == "1"
     )
 

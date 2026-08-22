@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from territorial_mcp import server
+from nutshell_mcp import server
 
 
 async def test_sept_tools_exactement():
@@ -122,11 +122,11 @@ async def test_get_indicators_niveau_trop_grossier(materialized):
 async def test_get_indicators_non_materialise_offline(
     materialized, monkeypatch: pytest.MonkeyPatch
 ):
-    monkeypatch.setenv("TERRITORIAL_OFFLINE", "1")
+    monkeypatch.setenv("NUTSHELL_OFFLINE", "1")
     out = await server.get_indicators(["hospitals_count"], ["FRK2"])
     assert out.splitlines() == [
         "Indicateur 'hospitals_count' non matérialisé et mode offline actif.",
-        "Lancer : python -m territorial_mcp.sync --source osm "
+        "Lancer : python -m nutshell_mcp.sync --source osm "
         "--indicators hospitals_count",
     ]
 

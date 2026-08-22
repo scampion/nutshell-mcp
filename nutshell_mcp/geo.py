@@ -32,7 +32,7 @@ Interface pour les pipelines d'ingestion (lots 2 et 3)
 ------------------------------------------------------
 .. code-block:: python
 
-    from territorial_mcp import geo
+    from nutshell_mcp import geo
 
     # Fichier de géométries à passer à exactextract / DuckDB spatial
     path = geo.geometry_path("NUTS3")          # 01M, millésime 2024

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from territorial_mcp import config, geo
+from nutshell_mcp import config, geo
 
 
 def test_zones_par_niveau(geo_table):

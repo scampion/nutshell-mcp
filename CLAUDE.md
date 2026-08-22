@@ -1,18 +1,19 @@
-# territorial-mcp — conventions de travail
+# nutshell-mcp — conventions de travail
 
+Nom du projet : **nutshell-mcp** (« Europe in a nutshell » : NUTS, la clé de jointure, + compaction pour un modèle 27B).
 Serveur MCP de données territoriales européennes (Eurostat, Copernicus, OSM).
 **Document de référence : `architecture-spec-mcp-territorial.md`** — toute implémentation
 doit s'y conformer (principes P1–P5, §6 stockage, §7 pipelines, §8 tools, Annexe A contrat d'erreur).
 En cas d'écart nécessaire, le documenter dans `DECISIONS.md` (ADR court) plutôt que de dévier en silence.
 
 ## Décisions figées (ne pas rediscuter)
-- Package Python : `territorial_mcp` (la spec dit `platform.*` — impossible, `platform` est un module stdlib).
-  Point d'entrée sync : `python -m territorial_mcp.sync`. Serveur : `python -m territorial_mcp.server`.
-- Offline : `TERRITORIAL_OFFLINE=1` (alias conservé : `EUROSTAT_OFFLINE=1`).
-- Données à la racine du projet (configurable par `TERRITORIAL_DATA_DIR`, défaut = racine du dépôt) :
+- Package Python : `nutshell_mcp` (la spec dit `platform.*` — impossible, `platform` est un module stdlib ; le nom provisoire `territorial_mcp` a été abandonné). Commande console : `nutshell`.
+  Point d'entrée sync : `python -m nutshell_mcp.sync`. Serveur : `python -m nutshell_mcp.server`.
+- Offline : `NUTSHELL_OFFLINE=1` (alias conservé : `EUROSTAT_OFFLINE=1`).
+- Données à la racine du projet (configurable par `NUTSHELL_DATA_DIR`, défaut = racine du dépôt) :
   `mirror/eurostat/{dataset}.parquet`, `mirror/indicators/indicator={id}/part-0.parquet`,
   `mirror/geo/`, `eurostat.db` (SQLite : catalogue FTS5, DSD, registry, états de sync), `work/` (temporaire purgeable).
-- Registre : `registry/*.yaml`, un indicateur par fichier, validé par pydantic (`territorial_mcp/registry.py`).
+- Registre : `registry/*.yaml`, un indicateur par fichier, validé par pydantic (`nutshell_mcp/registry.py`).
 - Langue : code/identifiants en anglais, docstrings, messages utilisateur et sorties de tools en **français**
   (cohérent avec l'existant). Commentaires concis.
 - Dépendances : stdlib + duckdb + pyarrow + httpx + pydantic + pyyaml + mcp. Les dépendances lourdes

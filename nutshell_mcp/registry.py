@@ -26,13 +26,13 @@ Validation en CI :
 
 .. code-block:: console
 
-    python -m territorial_mcp.registry validate
+    python -m nutshell_mcp.registry validate
 
 Interface pour les pipelines d'ingestion (lots 2 et 3)
 ------------------------------------------------------
 .. code-block:: python
 
-    from territorial_mcp import registry
+    from nutshell_mcp import registry
 
     specs = registry.load_all(source="osm")   # list[IndicatorSpec], YAML validés
     for spec in specs:
@@ -326,7 +326,7 @@ def search(query: str, source: str = "", limit: int = 10) -> list[dict]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m territorial_mcp.registry",
+        prog="python -m nutshell_mcp.registry",
         description="Validation et matérialisation du registre d'indicateurs",
     )
     parser.add_argument(

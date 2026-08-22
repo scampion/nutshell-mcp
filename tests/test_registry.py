@@ -6,7 +6,7 @@ import textwrap
 
 import pytest
 
-from territorial_mcp import registry
+from nutshell_mcp import registry
 
 INVALID = {
     # 1. source inconnue → aucun membre de l'union discriminée ne correspond

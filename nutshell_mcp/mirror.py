@@ -9,13 +9,13 @@ validation et ``list_codes`` fonctionnent hors ligne.
 
 Après chaque dataset matérialisé, les indicateurs du registre qui le
 projettent sont re-matérialisés au grain canonique
-(:mod:`territorial_mcp.project_eurostat`).
+(:mod:`nutshell_mcp.project_eurostat`).
 
 Usage :
-    python -m territorial_mcp.mirror --datasets nama_10_gdp,demo_pjan
-    python -m territorial_mcp.mirror --all            # ~24 Go compressés !
-    python -m territorial_mcp.mirror --resync         # datasets déjà mirrorés
-    python -m territorial_mcp.mirror --project-only   # reprojette sans réseau
+    python -m nutshell_mcp.mirror --datasets nama_10_gdp,demo_pjan
+    python -m nutshell_mcp.mirror --all            # ~24 Go compressés !
+    python -m nutshell_mcp.mirror --resync         # datasets déjà mirrorés
+    python -m nutshell_mcp.mirror --project-only   # reprojette sans réseau
 """
 
 from __future__ import annotations

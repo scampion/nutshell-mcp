@@ -1,12 +1,12 @@
 """Métadonnées SQLite (§6.3) : catalogue FTS5, structures DSD, états de sync.
 
-Un seul fichier, ``eurostat.db`` (chemin résolu par :mod:`territorial_mcp.config`).
+Un seul fichier, ``eurostat.db`` (chemin résolu par :mod:`nutshell_mcp.config`).
 Quatre familles de tables y cohabitent :
 
 - ``catalog`` (FTS5) : le TOC Eurostat, pour ``search_datasets`` hors ligne ;
 - ``structures`` : les DSD sérialisées, pour la validation et ``list_codes`` ;
 - ``registry`` / ``registry_fts`` : le registre matérialisé (voir
-  :mod:`territorial_mcp.registry`) ;
+  :mod:`nutshell_mcp.registry`) ;
 - ``sync_state`` : l'état de synchronisation générique par source.
 
 Interface pour les pipelines d'ingestion (lots 2 et 3)
@@ -16,7 +16,7 @@ sans créer de table dédiée :
 
 .. code-block:: python
 
-    from territorial_mcp import store
+    from nutshell_mcp import store
 
     previous = store.get_sync_state("osm", "europe-latest.osm.pbf")
     if previous != remote_timestamp:

@@ -31,7 +31,7 @@ class ProjectionError(Exception):
 
 
 _GEO_MISSING = (
-    "référentiel geo absent — lancer : python -m territorial_mcp.sync --source geo"
+    "référentiel geo absent — lancer : python -m nutshell_mcp.sync --source geo"
 )
 
 
@@ -75,7 +75,7 @@ def project(spec, source_date: str | None = None) -> int:
     if not path.exists():
         raise ProjectionError(
             f"miroir natif absent pour '{dataset}' — lancer : "
-            f"python -m territorial_mcp.mirror --datasets {dataset}"
+            f"python -m nutshell_mcp.mirror --datasets {dataset}"
         )
 
     allowed = _geo_table(list(spec.geo_levels))

@@ -5,18 +5,18 @@ hebdomadaire (Copernicus) et mensuel (OSM + référentiel geo) :
 
 .. code-block:: console
 
-    python -m territorial_mcp.sync --source geo
-    python -m territorial_mcp.sync --source eurostat
-    python -m territorial_mcp.sync --source osm --indicators hospitals_count
-    python -m territorial_mcp.sync --source all --full
+    python -m nutshell_mcp.sync --source geo
+    python -m nutshell_mcp.sync --source eurostat
+    python -m nutshell_mcp.sync --source osm --indicators hospitals_count
+    python -m nutshell_mcp.sync --source all --full
 
 Un échec sur un indicateur n'interrompt jamais le lot : le rapport final liste
 mis à jour / inchangés / échecs avec la raison (§7).
 
 Contrat pour les pipelines des lots 2 et 3
 ------------------------------------------
-Un pipeline de source vit dans son propre module — ``territorial_mcp.ingest_osm``
-pour OSM, ``territorial_mcp.ingest_cds`` pour Copernicus — importé
+Un pipeline de source vit dans son propre module — ``nutshell_mcp.ingest_osm``
+pour OSM, ``nutshell_mcp.ingest_cds`` pour Copernicus — importé
 paresseusement ici, de sorte que le serveur et les autres pipelines démarrent
 sans les extras lourds. Chaque module doit exposer exactement :
 
@@ -60,8 +60,8 @@ from . import config, geo, indicators, registry
 SOURCES = ("geo", "eurostat", "copernicus", "osm")
 #: Modules d'ingestion attendus pour les sources non natives.
 PIPELINE_MODULES = {
-    "osm": "territorial_mcp.ingest_osm",
-    "copernicus": "territorial_mcp.ingest_cds",
+    "osm": "nutshell_mcp.ingest_osm",
+    "copernicus": "nutshell_mcp.ingest_cds",
 }
 
 
@@ -276,7 +276,7 @@ def run(source: str, indicator_ids: list[str] | None, full: bool, rate: float) -
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m territorial_mcp.sync",
+        prog="python -m nutshell_mcp.sync",
         description="Synchronisation des données territoriales (idempotente)",
     )
     parser.add_argument(

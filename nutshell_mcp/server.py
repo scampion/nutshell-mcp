@@ -14,8 +14,8 @@ est actionnable, avec les 3 candidats les plus proches (difflib) ; toute sortie
 est plafonnée et se termine par sa ligne de provenance (P5).
 
 Lancement :
-    python -m territorial_mcp.server            # stdio (client local)
-    MCP_TRANSPORT=http python -m territorial_mcp.server   # streamable HTTP
+    python -m nutshell_mcp.server            # stdio (client local)
+    MCP_TRANSPORT=http python -m nutshell_mcp.server   # streamable HTTP
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ LAST_N_PERIODS = 3     # sans filtre temporel
 
 
 def _offline() -> bool:
-    """Mode offline total : aucun appel réseau (TERRITORIAL_OFFLINE / EUROSTAT_OFFLINE)."""
+    """Mode offline total : aucun appel réseau (NUTSHELL_OFFLINE / EUROSTAT_OFFLINE)."""
     return config.offline()
 
 
@@ -93,7 +93,7 @@ async def _structure(dataset: str) -> dict:
     if _offline():
         raise api.EurostatError(
             f"Structure de '{dataset}' absente du cache et mode offline actif. "
-            f"Lancer : python -m territorial_mcp.mirror --datasets {dataset}")
+            f"Lancer : python -m nutshell_mcp.mirror --datasets {dataset}")
     try:
         structure = await api.fetch_structure(dataset)
     except api.EurostatError:
@@ -150,7 +150,7 @@ def _suggest_list(value: str, candidates: list[str], n: int = 3) -> list[str]:
 
 def _sync_command(source: str, indicator_id: str) -> str:
     return (
-        f"python -m territorial_mcp.sync --source {source} "
+        f"python -m nutshell_mcp.sync --source {source} "
         f"--indicators {indicator_id}"
     )
 
@@ -243,7 +243,7 @@ async def list_zones(level: str, parent: str = "", contains: str = "") -> str:
     if not available:
         return (
             "Référentiel géographique absent. "
-            "Lancer : python -m territorial_mcp.sync --source geo"
+            "Lancer : python -m nutshell_mcp.sync --source geo"
         )
     if level not in available:
         return (
@@ -325,7 +325,7 @@ async def get_indicators(
             if not geo.levels_available():
                 return (
                     "Référentiel géographique absent. "
-                    "Lancer : python -m territorial_mcp.sync --source geo"
+                    "Lancer : python -m nutshell_mcp.sync --source geo"
                 )
             close = geo.suggest(code)
             extra = f" Vouliez-vous : {', '.join(close)} ?" if close else ""
@@ -492,7 +492,7 @@ async def query_data(
 
     if _offline():
         return (f"Dataset '{dataset}' non mirroré et mode offline actif. "
-                f"Lancer : python -m territorial_mcp.mirror --datasets {dataset}")
+                f"Lancer : python -m nutshell_mcp.mirror --datasets {dataset}")
 
     if time_from:
         params["sinceTimePeriod"] = time_from

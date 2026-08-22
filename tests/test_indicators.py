@@ -5,7 +5,7 @@ from __future__ import annotations
 import pyarrow.parquet as pq
 import pytest
 
-from territorial_mcp import indicators, registry
+from nutshell_mcp import indicators, registry
 
 
 def test_schema_des_neuf_colonnes(materialized):

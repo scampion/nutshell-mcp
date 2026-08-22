@@ -1,6 +1,6 @@
 """Fixtures communes : répertoire de données isolé, référentiel geo et registre.
 
-Aucun test n'écrit dans le dépôt : `TERRITORIAL_DATA_DIR` pointe sur un
+Aucun test n'écrit dans le dépôt : `NUTSHELL_DATA_DIR` pointe sur un
 `tmp_path`, ce qui déplace `mirror/`, `eurostat.db` et `work/` avec lui.
 """
 
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from territorial_mcp import config, geo, indicators, registry
+from nutshell_mcp import config, geo, indicators, registry
 
 REGISTRY_YAML = {
     "gdp_per_capita": """
@@ -74,8 +74,8 @@ GEO_FIXTURE = [
 @pytest.fixture
 def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Isole tout l'état sur disque dans un tmp_path."""
-    monkeypatch.setenv("TERRITORIAL_DATA_DIR", str(tmp_path))
-    monkeypatch.delenv("TERRITORIAL_OFFLINE", raising=False)
+    monkeypatch.setenv("NUTSHELL_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("NUTSHELL_OFFLINE", raising=False)
     monkeypatch.delenv("EUROSTAT_OFFLINE", raising=False)
     config.ensure_dirs()
     return tmp_path
@@ -88,7 +88,7 @@ def registry_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     for name, body in REGISTRY_YAML.items():
         (directory / f"{name}.yaml").write_text(textwrap.dedent(body), encoding="utf-8")
-    monkeypatch.setenv("TERRITORIAL_REGISTRY_DIR", str(directory))
+    monkeypatch.setenv("NUTSHELL_REGISTRY_DIR", str(directory))
     return directory
 
 

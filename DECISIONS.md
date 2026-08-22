@@ -129,11 +129,11 @@ dans le module.
 
 ## ADR-L1-8. Le registre est du code, pas de la donnée
 
-**Contexte.** `TERRITORIAL_DATA_DIR` déplace tout l'état sur disque.
+**Contexte.** `NUTSHELL_DATA_DIR` déplace tout l'état sur disque.
 
-**Décision.** `registry/*.yaml` ne suit pas `TERRITORIAL_DATA_DIR` : il est
+**Décision.** `registry/*.yaml` ne suit pas `NUTSHELL_DATA_DIR` : il est
 versionné dans le dépôt, comme le code. Une variable dédiée,
-`TERRITORIAL_REGISTRY_DIR`, permet de le déplacer (utilisée par les tests).
+`NUTSHELL_REGISTRY_DIR`, permet de le déplacer (utilisée par les tests).
 
 **Conséquence.** `rsync` du répertoire `mirror/` + `eurostat.db` réplique bien
 l'état vivant (§9), et un déploiement met à jour le registre par un `git pull`.
@@ -214,7 +214,7 @@ une valeur sans réserve.
 
 **Contexte.** Le lead demandait « une commande pour projeter sans re-télécharger ».
 
-**Décision.** `python -m territorial_mcp.mirror --project-only [--datasets a,b]`.
+**Décision.** `python -m nutshell_mcp.mirror --project-only [--datasets a,b]`.
 
 **Conséquence.** `sync.py` garde une interface unique et orthogonale
 (`--source`), tandis que `mirror.py` reste l'outil bas niveau du miroir natif,

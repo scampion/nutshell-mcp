@@ -1,5 +1,5 @@
 [project]
-name = "territorial-mcp"
+name = "nutshell-mcp"
 version = "0.2.0"
 description = "Serveur MCP de données territoriales européennes (Eurostat, Copernicus, OSM) — grain unifié zone × indicateur × période, mode offline total"
 requires-python = ">=3.11"
@@ -18,14 +18,14 @@ copernicus = ["cdsapi>=0.7", "xarray>=2024.1", "netCDF4>=1.6", "exactextract>=0.
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
 
 [project.scripts]
-territorial-mcp = "territorial_mcp.server:main"
+nutshell = "nutshell_mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["territorial_mcp"]
+packages = ["nutshell_mcp"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
