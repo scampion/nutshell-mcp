@@ -141,8 +141,12 @@ def _to_table(rows: Any) -> pa.Table:
     """Normalise l'entrée d'un pipeline en ``pyarrow.Table``."""
     if isinstance(rows, pa.Table):
         return rows
-    if hasattr(rows, "arrow"):  # relation DuckDB
-        return rows.arrow()
+    if isinstance(rows, pa.RecordBatchReader):  # DuckDB ≥ 1.5 : .arrow() streame
+        return rows.read_all()
+    if hasattr(rows, "fetch_arrow_table"):  # relation / résultat DuckDB
+        return rows.fetch_arrow_table()
+    if hasattr(rows, "arrow"):
+        return _to_table(rows.arrow())
     if isinstance(rows, dict):
         return pa.table(rows)
     rows = list(rows)
