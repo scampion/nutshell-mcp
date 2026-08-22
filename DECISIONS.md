@@ -359,3 +359,31 @@ relie les deux représentations.
 systématique sur tous les indicateurs OSM (§7.3) : le modèle est prévenu que
 ces comptages sont approximatifs, sans prétendre à une précision que la donnée
 source ne permet pas de garantir à ce stade.
+
+### ADR-L2-9. `sync_pipeline` : duck-typing plutôt qu'`isinstance` sur `SyncReport`
+
+**Contexte.** Bug du socle découvert en validant réellement `python -m
+nutshell_mcp.sync --source osm` (le pipeline OSM est le premier module
+concret importé dynamiquement par `sync_pipeline`, jusqu'ici toujours en
+`ImportError`) : la commande matérialisait correctement les partitions mais
+affichait `[osm] 0 mis à jour, 0 inchangés, 0 échecs` — un rapport vide alors
+que le travail avait bien eu lieu. Cause : `python -m nutshell_mcp.sync`
+exécute `sync.py` comme `__main__` ; `sync_pipeline` y appelle
+`importlib.import_module("nutshell_mcp.ingest_osm")`, dont l'import relatif
+`from .sync import SyncReport` réimporte le **même fichier** sous son nom réel
+`nutshell_mcp.sync`. Le module `sync.py` est donc exécuté deux fois sous deux
+identités différentes, produisant deux classes `SyncReport` distinctes en
+mémoire : `isinstance(result, SyncReport)` compare alors deux classes
+non-identiques et échoue silencieusement, même quand `result` est un rapport
+parfaitement valide.
+
+**Décision.** Remplacer le contrôle par duck-typing (`hasattr(result,
+"render")` et `hasattr(result, "ok")`) plutôt que par identité de classe.
+
+**Conséquence.** `python -m nutshell_mcp.sync --source osm` affiche désormais
+le vrai rapport. Un pipeline dont `sync()` ne respecte pas le contrat (retourne
+`None` ou un objet sans `render`/`ok`) tombe toujours sur le `report` local
+vide plutôt que de faire planter l'orchestration — comportement inchangé pour
+ce cas. Ce piège concerne potentiellement aussi le futur `ingest_cds.py`
+(lot 3) : la correction est faite une fois dans `sync_pipeline`, pas à
+dupliquer par pipeline.
