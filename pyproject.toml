@@ -30,6 +30,10 @@ packages = ["territorial_mcp"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "-m 'not network'"
+markers = [
+  "network: test nécessitant un accès réseau (désélectionné par défaut avec -m 'not network')",
+]
 
 [tool.ruff]
 line-length = 100
