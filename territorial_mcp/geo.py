@@ -52,8 +52,8 @@ import json
 import sqlite3
 import xml.etree.ElementTree as ET
 import zipfile
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import httpx
 
@@ -67,7 +67,7 @@ CORRESPONDENCE_URL = (
 )
 
 NUTS_LEVELS = ("NUTS0", "NUTS1", "NUTS2", "NUTS3")
-ALL_LEVELS = NUTS_LEVELS + ("CITY",)
+ALL_LEVELS = (*NUTS_LEVELS, "CITY")
 RESOLUTIONS = (config.INGEST_RESOLUTION, config.DISPLAY_RESOLUTION)
 
 #: Propriété portant le code de zone dans les GeoJSON GISCO, par famille.
@@ -321,7 +321,7 @@ def recoding_map(vintage_from: int, vintage_to: int = config.DEFAULT_NUTS_VINTAG
                  AND old_code IS NOT NULL AND new_code IS NOT NULL AND old_code <> new_code""",
             (vintage_from, vintage_to),
         ).fetchall()
-    return {old: new for old, new in rows}
+    return dict(rows)
 
 
 # ------------------------------------------------------------------- lecture

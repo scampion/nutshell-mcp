@@ -34,3 +34,15 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+# Jeu de règles explicite : la CI ne doit pas dépendre du défaut de la version
+# de ruff installée. Les `except Exception` sont voulus (§7 : un échec
+# d'indicateur n'interrompt pas le lot), BLE n'est donc pas retenu.
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+  "B008",    # Field(...) en valeur par défaut : idiome pydantic
+  "RUF001",  # apostrophes typographiques dans les messages français
+  "RUF002",
+  "RUF003",
+]

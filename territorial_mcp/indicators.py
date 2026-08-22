@@ -49,9 +49,10 @@ indicateur n'est donc jamais lisible à moitié re-matérialisé.
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, timezone
+from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import duckdb
 import pyarrow as pa
@@ -177,7 +178,7 @@ def write_partition(
         )
     n = table.num_rows
     # UTC naïf : évite la dépendance pytz de DuckDB sur les timestamptz.
-    stamp = (ingested_at or datetime.now(timezone.utc)).replace(tzinfo=None)
+    stamp = (ingested_at or datetime.now(UTC)).replace(tzinfo=None)
 
     def constant(value, kind):
         return pa.array([value] * n, type=kind)
@@ -267,7 +268,7 @@ def query(
     """
     paths = _glob(indicators)
     if not paths:
-        return list(("geo_code", "time")) + list(indicators), [], {}
+        return ["geo_code", "time", *indicators], [], {}
 
     where = ["indicator IN (" + ",".join("?" * len(indicators)) + ")"]
     args: list[Any] = list(indicators)
@@ -288,7 +289,7 @@ def query(
     )
     rows = con.execute(base, [paths, *args]).fetchall()
     if not rows:
-        return list(("geo_code", "time")) + list(indicators), [], {}
+        return ["geo_code", "time", *indicators], [], {}
 
     if not time_from and not time_to and last_n_periods > 0:
         periods = sorted({r[2] for r in rows}, reverse=True)[:last_n_periods]

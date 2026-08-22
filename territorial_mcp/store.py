@@ -156,4 +156,4 @@ def list_sync_state(source: str) -> dict[str, str | None]:
         rows = c.execute(
             "SELECT key, value FROM sync_state WHERE source=?", (source,)
         ).fetchall()
-    return {k: v for k, v in rows}
+    return dict(rows)

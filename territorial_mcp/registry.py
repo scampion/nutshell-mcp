@@ -42,10 +42,11 @@ Interface pour les pipelines d'ingestion (lots 2 et 3)
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from pathlib import Path
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -161,7 +162,7 @@ class OsmIndicator(_IndicatorBase):
 
 
 IndicatorSpec = Annotated[
-    Union[EurostatIndicator, CopernicusIndicator, OsmIndicator],
+    EurostatIndicator | CopernicusIndicator | OsmIndicator,
     Field(discriminator="source"),
 ]
 
@@ -273,12 +274,10 @@ def ensure_materialized() -> None:
         ).fetchone()
     if row is not None and row[0] == fingerprint:
         return
-    try:
+    # Un registre invalide ne doit pas empêcher le serveur de servir ce qui a
+    # déjà été matérialisé.
+    with contextlib.suppress(RegistryError):
         materialize()
-    except RegistryError:
-        # Un registre invalide ne doit pas empêcher le serveur de servir
-        # ce qui a déjà été matérialisé.
-        pass
 
 
 def get(indicator_id: str):

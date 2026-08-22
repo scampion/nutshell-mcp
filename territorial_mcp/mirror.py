@@ -33,9 +33,8 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from . import config
+from . import config, store
 from . import eurostat_client as api
-from . import store
 
 BULK_URL = (
     "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/"
@@ -97,7 +96,7 @@ def _parse_tsv(stream: io.TextIOBase):
     times = [t.strip() for t in header[1:]]
     for row in reader:
         codes = [c.strip() for c in row[0].split(",")]
-        for t, cell in zip(times, row[1:]):
+        for t, cell in zip(times, row[1:], strict=False):
             cell = cell.strip()
             if not cell:
                 continue
@@ -146,7 +145,7 @@ async def sync_dataset(code: str, toc_update: str) -> int:
             for d in dims:
                 cols[d] = []
             cols["time"], cols["value"], cols["flag"] = [], [], []
-        for d, c in zip(dims, codes):
+        for d, c in zip(dims, codes, strict=False):
             cols[d].append(c)
         cols["time"].append(t)
         cols["value"].append(val)
@@ -219,7 +218,6 @@ async def sync(targets: list[str] | None, resync: bool, rate: float) -> None:
     if resync:
         targets = mirrored_datasets()
     if targets is None:
-        total_cells = 8.48e9
         print(f"ATTENTION : miroir complet ≈ 24 Go compressés "
               f"({len(toc_by_code)} datasets). Ctrl-C pour annuler (5 s)…")
         await asyncio.sleep(5)
