@@ -7,11 +7,16 @@ geo_levels: [NUTS2, NUTS3, CITY]
 nuts_vintage: 2024
 description: >-
   Nombre d'objets OpenStreetMap tagués railway=station dans la zone.
-  Indicateur d'accessibilité ferroviaire. Matérialisé par le pipeline OSM
-  (lot 2).
+  Indicateur d'accessibilité ferroviaire. Volontairement restreint à
+  railway=station (gares) : railway=halt (arrêts sans bâtiment voyageurs,
+  souvent de simples quais) est exclu pour garder un périmètre "gare" net et
+  reproductible plutôt qu'un mélange gare/arrêt hétérogène selon les pays.
+  Matérialisé par le pipeline OSM (lot 2).
 extraction:
   tags:
     - key: railway
       value: station
-  geometry: [node, way]
+  # Sur le Luxembourg (spike) : 65 node, 0 way/relation — mais "way"/"relation"
+  # sont conservés par précaution (grandes gares multipolygones ailleurs en Europe).
+  geometry: [node, way, relation]
   aggregation: count

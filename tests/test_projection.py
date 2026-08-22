@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sys
+import types
+
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
@@ -117,10 +120,46 @@ def test_indicators_for_dataset(data_dir, registry_dir):
 # ------------------------------------------------------------------ sync.py
 
 def test_pipeline_non_implemente(data_dir, registry_dir):
-    report = sync.sync_pipeline("osm", registry.load_all(source="osm"), full=False)
+    # Lot 2 (OSM) est livré depuis nutshell_mcp/ingest_osm.py : ce test cible
+    # désormais le lot 3 (Copernicus), toujours non livré dans cette base.
+    report = sync.sync_pipeline("copernicus", [], full=False)
     assert report.ok  # un lot non livré n'est pas un échec
-    assert "pipeline non implémenté (lot 2)" in "\n".join(report.notes)
-    assert "nutshell_mcp.ingest_osm" in "\n".join(report.notes)
+    assert "pipeline non implémenté (lot 3)" in "\n".join(report.notes)
+    assert "nutshell_mcp.ingest_cds" in "\n".join(report.notes)
+
+
+def test_sync_pipeline_accepte_un_syncreport_dune_autre_identite_de_module(
+    data_dir, registry_dir, monkeypatch: pytest.MonkeyPatch
+):
+    """Régression : `python -m nutshell_mcp.sync` exécute sync.py comme `__main__`
+    tandis que l'import relatif d'un pipeline (`from .sync import SyncReport`,
+    déclenché par `importlib.import_module` dans `sync_pipeline`) le réimporte
+    sous son nom réel `nutshell_mcp.sync` — deux exécutions du module, donc deux
+    classes `SyncReport` distinctes coexistant en mémoire. Un `isinstance` échoue
+    alors silencieusement même sur un rapport valide ; `sync_pipeline` doit le
+    reconnaître par duck-typing plutôt que par identité de classe.
+    """
+
+    class FakeReport:
+        """Simule un `SyncReport` chargé sous une autre identité de module."""
+
+        def __init__(self):
+            self.marker = "vrai rapport, pas le report local vide"
+
+        def render(self):
+            return self.marker
+
+        @property
+        def ok(self):
+            return True
+
+    fake_module = types.ModuleType("fake_osm_pipeline")
+    fake_module.sync = lambda specs, full: FakeReport()
+    monkeypatch.setitem(sys.modules, "fake_osm_pipeline", fake_module)
+    monkeypatch.setitem(sync.PIPELINE_MODULES, "osm", "fake_osm_pipeline")
+
+    report = sync.sync_pipeline("osm", registry.load_all(source="osm"), full=False)
+    assert getattr(report, "marker", None) == "vrai rapport, pas le report local vide"
 
 
 def test_sync_report_rendu():
