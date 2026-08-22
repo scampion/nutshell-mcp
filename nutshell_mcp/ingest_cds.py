@@ -516,7 +516,14 @@ class CdsProvider(RasterProvider):
     # -- requête
 
     def build_request(self, spec: Any, year: int) -> dict:
-        """Requête CDS d'un indicateur pour une année (moyennes mensuelles)."""
+        """Requête CDS d'un indicateur pour une année (moyennes mensuelles).
+
+        ``temporal_agg.stat`` s'applique aux **moyennes mensuelles**, pas aux pas
+        horaires : c'est bien la définition d'une « moyenne estivale » pour
+        ``stat: mean``, mais le maximum de trois moyennes mensuelles n'est pas le
+        maximum horaire de l'été. Un indicateur en ``stat: max`` doit donc viser
+        le produit horaire, pas ce dataset.
+        """
         aggregation = spec.extraction.temporal_agg
         months = aggregation.months or list(range(1, 13))
         request = {
