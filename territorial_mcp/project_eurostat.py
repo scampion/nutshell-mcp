@@ -30,6 +30,11 @@ class ProjectionError(Exception):
     """Projection impossible : message destiné au rapport de synchronisation."""
 
 
+_GEO_MISSING = (
+    "référentiel geo absent — lancer : python -m territorial_mcp.sync --source geo"
+)
+
+
 def native_path(dataset: str):
     """Chemin du Parquet natif d'un dataset dans le miroir Eurostat."""
     return config.eurostat_mirror_dir() / f"{dataset}.parquet"
@@ -54,10 +59,7 @@ def _geo_table(levels: list[str]) -> pa.Table:
                 levels,
             ).fetchall()
         except sqlite3.OperationalError as exc:  # table geo absente
-            raise ProjectionError(
-                "référentiel geo absent — lancer : "
-                "python -m territorial_mcp.sync --source geo"
-            ) from exc
+            raise ProjectionError(_GEO_MISSING) from exc
     return pa.table({"geo_code": pa.array([r[0] for r in rows], type=pa.string())})
 
 
@@ -78,6 +80,8 @@ def project(spec, source_date: str | None = None) -> int:
 
     allowed = _geo_table(list(spec.geo_levels))
     if allowed.num_rows == 0:
+        if not geo.is_available():
+            raise ProjectionError(_GEO_MISSING)
         raise ProjectionError(
             f"aucune zone du référentiel aux niveaux {', '.join(spec.geo_levels)}"
         )
