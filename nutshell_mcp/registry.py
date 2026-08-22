@@ -112,7 +112,18 @@ class OsmTag(_Base):
 
 
 class OsmExtraction(_Base):
-    """Agrégation d'objets OpenStreetMap par zone (§7.3)."""
+    """Agrégation d'objets OpenStreetMap par zone (§7.3).
+
+    ``tags`` accepte plusieurs paires (clé, valeur) : elles sont combinées en
+    **OU** par le pipeline d'ingestion (``ingest_osm._aggregate``) — un objet
+    OSM compte pour l'indicateur s'il porte au moins une des paires listées
+    (utile par ex. pour regrouper plusieurs valeurs synonymes d'une même
+    clé). ``geometry`` restreint les types d'objets OSM pris en compte
+    (nœud, way, relation) : un hôpital ou une école est fréquemment
+    cartographié comme way (empreinte de bâtiment) ou relation (multipolygone,
+    campus) plutôt que comme simple nœud — omettre ``relation`` sous-compte
+    systématiquement ces cas (constaté sur le Luxembourg : cf. registre).
+    """
 
     tags: list[OsmTag] = Field(min_length=1)
     geometry: list[Literal["node", "way", "relation"]] = Field(min_length=1)

@@ -14,5 +14,9 @@ extraction:
   tags:
     - key: amenity
       value: hospital
-  geometry: [node, way]
+  # Un hôpital est souvent cartographié comme way (empreinte de bâtiment) ou
+  # comme relation (multipolygone, campus à plusieurs bâtiments) plutôt que
+  # comme simple nœud : sur le Luxembourg (spike), 13 way + 2 relation, 0 node.
+  # Omettre "relation" sous-compterait systématiquement.
+  geometry: [node, way, relation]
   aggregation: count

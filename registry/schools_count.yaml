@@ -12,5 +12,7 @@ extraction:
   tags:
     - key: amenity
       value: school
-  geometry: [node, way]
+  # Sur le Luxembourg (spike) : 352 way + 34 node + 7 relation (campus
+  # multipolygones). Omettre "relation" sous-compterait ~2 % des écoles.
+  geometry: [node, way, relation]
   aggregation: count
