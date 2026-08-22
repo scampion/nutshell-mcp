@@ -259,6 +259,41 @@ def test_fournisseur_par_defaut(monkeypatch, tmp_path):
     assert cds.default_provider() == "cds"
 
 
+def test_routage_du_fournisseur_par_produit(monkeypatch, tmp_path, spec_lst, spec_imperv):
+    """Sans consigne explicite, un produit non-ERA5 ne peut venir que d'un raster local."""
+    monkeypatch.delenv("NUTSHELL_CDS_PROVIDER", raising=False)
+    monkeypatch.delenv("CDSAPI_KEY", raising=False)
+    monkeypatch.setenv("CDSAPI_RC", str(tmp_path / "absent.cdsapirc"))
+    assert cds.provider_name_for(spec_lst) == "arco"
+    assert cds.provider_name_for(spec_imperv) == "local"
+    # une consigne explicite l'emporte sur la déduction
+    monkeypatch.setenv("NUTSHELL_CDS_PROVIDER", "local")
+    assert cds.provider_name_for(spec_lst) == "local"
+
+
+def test_sync_route_imperviousness_vers_local(geometries, spec_lst, spec_imperv,
+                                              stub_provider, monkeypatch, tmp_path):
+    """lst_summer_mean passe par le fournisseur ERA5, imperviousness_share par local."""
+    monkeypatch.setattr(
+        cds, "make_provider",
+        lambda name="", bbox=None: stub_provider if name != "local" else cds.LocalProvider(bbox),
+    )
+    monkeypatch.delenv("NUTSHELL_CDS_PROVIDER", raising=False)
+    monkeypatch.delenv("CDSAPI_KEY", raising=False)
+    monkeypatch.setenv("CDSAPI_RC", str(tmp_path / "absent.cdsapirc"))
+    monkeypatch.setenv("NUTSHELL_RASTER_DIR", str(tmp_path / "rasters"))
+    monkeypatch.setenv("NUTSHELL_CDS_YEARS", "2023")
+    monkeypatch.setenv("NUTSHELL_CDS_COUNTRIES", "ZZ")
+
+    report = cds.sync([spec_lst, spec_imperv], full=False)
+    assert stub_provider.calls == [("lst_summer_mean", 2023)]
+    assert report.updated_items and "lst_summer_mean" in report.updated_items[0]
+    # le raster CLMS n'est pas déposé : erreur actionnable, sans bloquer le lot
+    failed_id, reason = report.failed_items[0]
+    assert failed_id == "imperviousness_share"
+    assert "land.copernicus.eu" in reason
+
+
 def test_fournisseur_inconnu():
     with pytest.raises(cds.CdsError, match="NUTSHELL_CDS_PROVIDER"):
         cds.make_provider("météo-france")

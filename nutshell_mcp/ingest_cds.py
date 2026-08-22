@@ -16,9 +16,11 @@ Séquence, identique quelle que soit la provenance du raster :
 
 Fournisseurs de rasters
 -----------------------
-Un fournisseur expose ``fetch(spec, year) -> Raster``. Le choix se fait par
-``NUTSHELL_CDS_PROVIDER`` ; par défaut ``cds`` si ``~/.cdsapirc`` existe, sinon
-``arco`` (repli anonyme, sans aucune clé).
+Un fournisseur expose ``fetch(spec, year) -> Raster``. ``NUTSHELL_CDS_PROVIDER``
+impose le même pour tout le lot ; sans consigne, le fournisseur est déduit du
+produit déclaré au registre : une réanalyse ERA5 (``reanalysis-*``) va vers
+``cds`` si ``~/.cdsapirc`` existe et ``arco`` sinon, tout autre produit — les
+couches CLMS notamment — vers ``local``, seule voie possible pour eux.
 
 ``cds``
     Voie officielle : ``cdsapi`` sur ``reanalysis-era5-land-monthly-means``
@@ -717,6 +719,19 @@ def make_provider(name: str = "", bbox=None) -> RasterProvider:
     return PROVIDERS[name](bbox)
 
 
+def provider_name_for(spec: Any) -> str:
+    """Fournisseur adapté à un indicateur, quand l'environnement ne l'impose pas.
+
+    ``cds`` comme ``arco`` ne servent que des réanalyses ERA5 : tout autre produit
+    (couches CLMS notamment) ne peut venir que d'un raster déposé à la main.
+    """
+    explicit = _env("NUTSHELL_CDS_PROVIDER")
+    if explicit:
+        return explicit.lower()
+    product = getattr(spec.extraction, "product", "") or ""
+    return default_provider() if product.startswith("reanalysis-") else "local"
+
+
 # ------------------------------------------------------ statistiques zonales
 
 def kelvin_offset(spec: Any, units: str, sample_max: float | None) -> float:
@@ -869,16 +884,6 @@ def sync(specs: list, full: bool = False) -> SyncReport:
         f"emprise {bbox[0]:.1f}/{bbox[1]:.1f} → {bbox[2]:.1f}/{bbox[3]:.1f}"
     )
 
-    try:
-        provider = make_provider(bbox=bbox)
-    except CdsError as exc:
-        report.failed("copernicus", str(exc))
-        return report
-    report.note(
-        f"fournisseur '{provider.name}'"
-        + ("" if _env("NUTSHELL_CDS_PROVIDER") else " (déduit : pas de ~/.cdsapirc)")
-    )
-
     # -- années à produire par indicateur
     plan: dict[str, list[int]] = {}
     for spec in specs:
@@ -889,22 +894,47 @@ def sync(specs: list, full: bool = False) -> SyncReport:
             continue
         plan[spec.id] = todo
     if not plan:
-        provider.close()
         return report
 
-    jobs = [(spec, year) for spec in specs for year in plan.get(spec.id, [])]
-    try:
-        provider.prepare(jobs)
-    except Exception as exc:
-        report.failed("soumission", str(exc))
-        provider.close()
-        return report
-
+    # -- un fournisseur par famille de produit, instancié à la demande
+    pool: dict[str, RasterProvider] = {}
+    assigned: dict[str, RasterProvider] = {}
     by_id = {spec.id: spec for spec in specs}
-    for indicator_id, todo in plan.items():
-        spec = by_id[indicator_id]
+    for indicator_id in list(plan):
         try:
-            written = _materialize(spec, todo, provider, features, report)
+            name = provider_name_for(by_id[indicator_id])
+            if name not in pool:
+                pool[name] = make_provider(name, bbox=bbox)
+                report.note(
+                    f"fournisseur '{name}'"
+                    + ("" if _env("NUTSHELL_CDS_PROVIDER") else " (déduit)")
+                )
+            assigned[indicator_id] = pool[name]
+        except CdsError as exc:
+            report.failed(indicator_id, str(exc))
+            plan.pop(indicator_id, None)
+
+    # Les requêtes d'un même fournisseur sont soumises d'un bloc avant collecte
+    # (files d'attente CDS de plusieurs heures, §7.2).
+    for provider in pool.values():
+        jobs = [
+            (by_id[i], year)
+            for i, todo in plan.items()
+            for year in todo
+            if assigned.get(i) is provider
+        ]
+        try:
+            provider.prepare(jobs)
+        except Exception as exc:
+            for spec, _ in jobs:
+                report.failed(spec.id, f"soumission impossible : {exc}")
+                plan.pop(spec.id, None)
+
+    for indicator_id, todo in plan.items():
+        try:
+            written = _materialize(
+                by_id[indicator_id], todo, assigned[indicator_id], features, report
+            )
         except Exception as exc:
             report.failed(indicator_id, str(exc))
             continue
@@ -912,7 +942,8 @@ def sync(specs: list, full: bool = False) -> SyncReport:
             indicator_id,
             f"{written:,} lignes, années {', '.join(str(y) for y in todo)}",
         )
-    provider.close()
+    for provider in pool.values():
+        provider.close()
     return report
 
 

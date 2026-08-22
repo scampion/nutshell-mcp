@@ -235,10 +235,14 @@ des assets ne l'est pas**, et qu'aucune collection « imperviousness » n'y
 figure.
 
 **Décision.** L'acquisition passe par un fournisseur, `fetch(spec, year) ->
-Raster`, sélectionné par `NUTSHELL_CDS_PROVIDER` (défaut : `cds` si
-`~/.cdsapirc` existe, sinon `arco`, avec la mention du choix dans le rapport de
-sync). Tout l'aval — recalage, statistiques zonales, conversion d'unité,
-écriture, purge — est commun.
+Raster`. `NUTSHELL_CDS_PROVIDER` l'impose pour tout le lot ; sans consigne, il
+est **déduit du produit déclaré au registre** : `reanalysis-*` va vers `cds` si
+`~/.cdsapirc` existe et vers `arco` sinon, tout autre produit vers `local` —
+`cds` comme `arco` ne servent que des réanalyses ERA5, et router un produit CLMS
+vers eux ne produirait qu'un « variable absente du store » incompréhensible.
+Le choix est mentionné dans le rapport de sync. Tout l'aval — recalage,
+statistiques zonales, conversion d'unité, écriture, purge — est commun, et un
+même lot peut mêler plusieurs fournisseurs.
 
 **Conséquence.** Le pipeline est complet et testable sans clé ni réseau, et la
 voie officielle CDS n'est pas un TODO : elle est implémentée, testée par mock

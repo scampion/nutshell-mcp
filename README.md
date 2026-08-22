@@ -176,8 +176,9 @@ de kilo-octets par indicateur.
 
 ### Trois fournisseurs de rasters
 
-`NUTSHELL_CDS_PROVIDER` choisit la provenance. Par défaut : `cds` si
-`~/.cdsapirc` existe, sinon `arco`.
+`NUTSHELL_CDS_PROVIDER` impose la provenance pour tout le lot. Sans consigne,
+elle est déduite du `product` du registre : une réanalyse ERA5 va vers `cds` si
+`~/.cdsapirc` existe et vers `arco` sinon, tout autre produit vers `local`.
 
 | fournisseur | source | clé | qualité |
 |---|---|---|---|
