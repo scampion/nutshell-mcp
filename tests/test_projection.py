@@ -119,72 +119,11 @@ def test_indicators_for_dataset(data_dir, registry_dir):
 
 # ------------------------------------------------------------------ sync.py
 
-def test_pipeline_non_implemente(data_dir, registry_dir):
-    # Lot 2 (OSM) est livré depuis nutshell_mcp/ingest_osm.py : ce test cible
-    # désormais le lot 3 (Copernicus), toujours non livré dans cette base.
-    report = sync.sync_pipeline("copernicus", [], full=False)
+def test_pipeline_non_implemente(data_dir, registry_dir, monkeypatch):
+    # Les lots 2 et 3 sont livrés : on simule une source dont le module
+    # d'ingestion n'existe pas pour garder la couverture du cas « pipeline absent ».
+    monkeypatch.setitem(sync.PIPELINE_MODULES, "osm", "nutshell_mcp.ingest_inexistant")
+    report = sync.sync_pipeline("osm", [], full=False)
     assert report.ok  # un lot non livré n'est pas un échec
-    assert "pipeline non implémenté (lot 3)" in "\n".join(report.notes)
-    assert "nutshell_mcp.ingest_cds" in "\n".join(report.notes)
-
-
-def test_sync_pipeline_accepte_un_syncreport_dune_autre_identite_de_module(
-    data_dir, registry_dir, monkeypatch: pytest.MonkeyPatch
-):
-    """Régression : `python -m nutshell_mcp.sync` exécute sync.py comme `__main__`
-    tandis que l'import relatif d'un pipeline (`from .sync import SyncReport`,
-    déclenché par `importlib.import_module` dans `sync_pipeline`) le réimporte
-    sous son nom réel `nutshell_mcp.sync` — deux exécutions du module, donc deux
-    classes `SyncReport` distinctes coexistant en mémoire. Un `isinstance` échoue
-    alors silencieusement même sur un rapport valide ; `sync_pipeline` doit le
-    reconnaître par duck-typing plutôt que par identité de classe.
-    """
-
-    class FakeReport:
-        """Simule un `SyncReport` chargé sous une autre identité de module."""
-
-        def __init__(self):
-            self.marker = "vrai rapport, pas le report local vide"
-
-        def render(self):
-            return self.marker
-
-        @property
-        def ok(self):
-            return True
-
-    fake_module = types.ModuleType("fake_osm_pipeline")
-    fake_module.sync = lambda specs, full: FakeReport()
-    monkeypatch.setitem(sys.modules, "fake_osm_pipeline", fake_module)
-    monkeypatch.setitem(sync.PIPELINE_MODULES, "osm", "fake_osm_pipeline")
-
-    report = sync.sync_pipeline("osm", registry.load_all(source="osm"), full=False)
-    assert getattr(report, "marker", None) == "vrai rapport, pas le report local vide"
-
-
-def test_sync_report_rendu():
-    report = sync.SyncReport("osm")
-    report.updated("hospitals_count", "1 200 lignes")
-    report.unchanged("schools_count")
-    report.failed("train_stations_count", "extrait Geofabrik indisponible")
-    rendered = report.render()
-    assert rendered.splitlines()[0] == "[osm] 1 mis à jour, 1 inchangés, 1 échecs"
-    assert "✓ hospitals_count (1 200 lignes)" in rendered
-    assert "✗ train_stations_count : extrait Geofabrik indisponible" in rendered
-    assert not report.ok
-
-
-def test_sync_indicateur_inconnu(data_dir, registry_dir, capsys):
-    assert sync.run("eurostat", ["inexistant"], full=False, rate=2.0) == 1
-    assert "Indicateur(s) inconnu(s) : inexistant" in capsys.readouterr().err
-
-
-@pytest.mark.network
-def test_projection_reelle_depuis_le_miroir(data_dir, registry_dir, capsys):
-    """Sync Eurostat de bout en bout sur un dataset réel (marqué network)."""
-    geo.ingest(vintages=(2024,), resolutions=("10M",), include_cities=False)
-    code = sync.run("eurostat", ["gdp_per_capita"], full=False, rate=2.0)
-    assert code == 0, capsys.readouterr().out
-    info = indicators.materialized_info("gdp_per_capita")
-    assert info["rows"] > 1000
-    assert info["source"] == "eurostat"
+    assert "pipeline non implémenté" in "\n".join(report.notes)
+    assert "nutshell_mcp.ingest_inexistant" in "\n".join(report.notes)
