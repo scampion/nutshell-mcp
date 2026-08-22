@@ -223,7 +223,16 @@ def sync_pipeline(source: str, specs: list, full: bool) -> SyncReport:
     except Exception as exc:
         report.failed(source, str(exc))
         return report
-    return result if isinstance(result, SyncReport) else report
+    # Duck-typing plutôt qu'`isinstance` : `python -m nutshell_mcp.sync` exécute
+    # ce fichier comme `__main__`, tandis que l'import paresseux du pipeline
+    # (`from .sync import SyncReport`, via l'import relatif d'``ingest_osm``)
+    # réimporte ce même fichier sous son nom réel `nutshell_mcp.sync` — deux
+    # exécutions du module, donc deux classes `SyncReport` distinctes en
+    # mémoire. `isinstance` échoue alors silencieusement même quand `result`
+    # est un rapport parfaitement valide, et l'appelant perdrait le vrai
+    # rapport au profit du `report` local vide.
+    is_report = result is not None and hasattr(result, "render") and hasattr(result, "ok")
+    return result if is_report else report
 
 
 # --------------------------------------------------------------------- main
