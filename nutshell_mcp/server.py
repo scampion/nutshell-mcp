@@ -156,17 +156,40 @@ def _sync_command(source: str, indicator_id: str) -> str:
 
 
 def _provenance(provenance: dict[str, dict]) -> str:
-    """Ligne de provenance multi-source : ``[Source : eurostat (21.08.2026), …]``."""
-    seen: dict[str, str] = {}
-    for meta in provenance.values():
+    """Ligne de provenance multi-source : ``[Source : eurostat (21.08.2026), …]``.
+
+    Quand plusieurs indicateurs d'une même source ont des dates différentes,
+    chacune est détaillée : ``eurostat (gdp_per_capita 30.06.2026, population
+    21.08.2026)`` — la traçabilité par valeur (§1) prime sur la concision.
+    """
+    by_source: dict[str, dict[str, str]] = {}
+    for indicator, meta in provenance.items():
         source = meta.get("source") or "?"
         date = meta.get("source_date") or "date inconnue"
-        if source not in seen or date > seen[source]:
-            seen[source] = date
-    if not seen:
+        by_source.setdefault(source, {})[indicator] = date
+    if not by_source:
         return "[Source : aucune donnée locale]"
-    parts = [f"{source} ({date})" for source, date in sorted(seen.items())]
+    parts = []
+    for source, dates in sorted(by_source.items()):
+        if len(set(dates.values())) == 1:
+            parts.append(f"{source} ({next(iter(dates.values()))})")
+        else:
+            detail = ", ".join(f"{ind} {d}" for ind, d in dates.items())
+            parts.append(f"{source} ({detail})")
     return "[Source : " + ", ".join(parts) + "]"
+
+
+def _missing_note(indicator_ids: list[str], provenance: dict[str, dict]) -> str | None:
+    """Signale les indicateurs demandés sans aucune valeur sur la fenêtre."""
+    missing = [i for i in indicator_ids if i not in provenance]
+    if not missing:
+        return None
+    details = []
+    for ind in missing:
+        info = canonical.materialized_info(ind)
+        span = f" (données disponibles {info['time_min']}–{info['time_max']})" if info else ""
+        details.append(f"{ind}{span}")
+    return "[Sans valeur sur la fenêtre demandée : " + ", ".join(details) + "]"
 
 
 def _table(columns: list[str], rows: list[list[str]]) -> list[str]:
@@ -378,6 +401,9 @@ async def get_indicators(
             f"[Tronqué à {MAX_ROWS} lignes sur {len(rows)} — réduisez le nombre "
             f"de zones ou resserrez time_from/time_to.]"
         )
+    note = _missing_note([s.id for s in specs], provenance)
+    if note:
+        out.append(note)
     out.append(_provenance(provenance))
     return "\n".join(out)
 

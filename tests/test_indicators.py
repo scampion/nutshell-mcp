@@ -99,3 +99,21 @@ def test_zone_ou_indicateur_absent_ne_leve_pas(materialized):
     assert rows == [] and provenance == {}
     _, rows, _ = indicators.query(["gdp_per_capita"], ["XX99"])
     assert rows == []
+
+
+def test_period_key_distingue_trimestre_et_mois():
+    """`2023-Q4` et `2023-10` ne doivent jamais partager la même clé de tri."""
+    from nutshell_mcp.indicators import _period_key
+
+    periods = ["2023-10", "2024-Q1", "2023", "2023-Q4", "2023-S2", "2023-01", "2023-04"]
+    assert sorted(periods, key=_period_key) == [
+        "2023", "2023-01", "2023-04", "2023-S2", "2023-Q4", "2023-10", "2024-Q1",
+    ]
+    assert _period_key("2023-Q4") != _period_key("2023-10")
+
+
+def test_search_catalog_guillemet_ne_plante_pas(data_dir):
+    from nutshell_mcp import store
+
+    assert store.search_catalog('nama"gdp', 10) == []
+    assert store.search_catalog("", 10) == []

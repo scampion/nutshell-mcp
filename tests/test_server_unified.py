@@ -77,7 +77,10 @@ async def test_get_indicators_pivote(materialized):
     lines = out.splitlines()
     assert lines[0] == "geo_code | time | gdp_per_capita | population"
     assert lines[1] == "FR10 | 2023 | 66800 [p] | 12300000"
-    assert lines[-1] == "[Source : eurostat (21.08.2026)]"
+    # deux datasets Eurostat de dates différentes : provenance détaillée par indicateur
+    assert lines[-1] == (
+        "[Source : eurostat (gdp_per_capita 21.08.2026, population 20.08.2026)]"
+    )
 
 
 async def test_get_indicators_trois_dernieres_periodes(materialized):

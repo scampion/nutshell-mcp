@@ -88,16 +88,22 @@ def replace_catalog(rows: list[dict]) -> None:
 
 
 def search_catalog(query: str, limit: int) -> list[dict]:
-    # Requête FTS5 : on échappe chaque terme pour éviter la syntaxe spéciale
-    terms = " ".join(f'"{t}"' for t in query.split())
+    # Requête FTS5 : chaque terme est cité (guillemets doublés) pour neutraliser
+    # la syntaxe spéciale ; une requête malformée renvoie simplement vide.
+    terms = " ".join('"' + t.replace('"', '""') + '"' for t in query.split())
+    if not terms:
+        return []
     with connect() as c:
-        rows = c.execute(
-            """
-            SELECT code, title, data_start, data_end
-            FROM catalog WHERE catalog MATCH ? ORDER BY rank LIMIT ?
-            """,
-            (terms, limit),
-        ).fetchall()
+        try:
+            rows = c.execute(
+                """
+                SELECT code, title, data_start, data_end
+                FROM catalog WHERE catalog MATCH ? ORDER BY rank LIMIT ?
+                """,
+                (terms, limit),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return []
     return [{"code": r[0], "title": r[1], "period": f"{r[2]}–{r[3]}"} for r in rows]
 
 

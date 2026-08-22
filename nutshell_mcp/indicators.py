@@ -296,7 +296,7 @@ def query(
         return ["geo_code", "time", *indicators], [], {}
 
     if not time_from and not time_to and last_n_periods > 0:
-        periods = sorted({r[2] for r in rows}, reverse=True)[:last_n_periods]
+        periods = sorted({r[2] for r in rows}, key=_period_key, reverse=True)[:last_n_periods]
         keep = set(periods)
         rows = [r for r in rows if r[2] in keep]
 
@@ -315,7 +315,9 @@ def query(
                 "ingested_at": ing,
             }
 
-    columns = ["geo_code", "time"] + [i for i in indicators if i in provenance]
+    # Toutes les colonnes demandées sont conservées, même sans valeur sur la
+    # fenêtre : une colonne vide est une information, une colonne disparue non.
+    columns = ["geo_code", "time", *indicators]
     # Zone croissante, période décroissante : la valeur la plus récente d'abord.
     ordered = sorted(pivot, key=lambda k: (k[0], _period_desc(k[1])))
     out = []
@@ -325,17 +327,32 @@ def query(
     return columns, out, provenance
 
 
-def _period_key(period: str) -> tuple:
-    """Tri chronologique naturel d'une période Eurostat (`2023`, `2023-Q1`, `2023-01`)."""
-    return tuple(
-        int(part) if part.isdigit() else part
-        for part in period.replace("Q", "").split("-")
-    )
+def _period_key(period: str) -> tuple[int, int, int]:
+    """Tri chronologique naturel d'une période Eurostat.
+
+    ``2023`` → (2023, 0, 0) ; ``2023-S2`` → (2023, 7, 1) ; ``2023-Q4`` → (2023, 10, 2) ;
+    ``2023-10`` → (2023, 10, 3). Le troisième terme distingue la granularité, de
+    sorte que ``2023-Q4`` et ``2023-10`` (octobre) ne partagent jamais la même clé.
+    """
+    year_s, _, sub = period.partition("-")
+    try:
+        year = int(year_s)
+    except ValueError:
+        return (0, 0, 0)
+    if not sub:
+        return (year, 0, 0)
+    if sub[0] == "S" and sub[1:].isdigit():
+        return (year, (int(sub[1:]) - 1) * 6 + 1, 1)
+    if sub[0] == "Q" and sub[1:].isdigit():
+        return (year, (int(sub[1:]) - 1) * 3 + 1, 2)
+    if sub.isdigit():
+        return (year, int(sub), 3)
+    return (year, 0, 9)
 
 
-def _period_desc(period: str):
+def _period_desc(period: str) -> tuple[int, int, int]:
     """Clé de tri décroissant sur la période (le plus récent en premier)."""
-    return tuple(-p if isinstance(p, int) else p for p in _period_key(period))
+    return tuple(-p for p in _period_key(period))  # type: ignore[return-value]
 
 
 def _format(value: float | None) -> str:
