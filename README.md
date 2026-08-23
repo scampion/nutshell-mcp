@@ -172,7 +172,10 @@ NUTSHELL_OSM_EXTRACTS=europe/luxembourg,europe/belgium \
   .venv/bin/python -m nutshell_mcp.sync --source osm --full    # re-matérialisation complète
 ```
 
-Périmètre : liste d'extraits pays Geofabrik dans `NUTSHELL_OSM_EXTRACTS`
+Périmètre : liste d'extraits pays Geofabrik dans `NUTSHELL_OSM_EXTRACTS`,
+ou les mots-clés `europe` (tous les pays du référentiel NUTS, ~30 Go téléchargés
+au total, pays par pays, pic disque ≈ 4,5 Go) et `eu27`, combinables avec des
+extraits explicites. Liste d'extraits
 (`continent/pays`, séparés par des virgules). Défaut volontairement restreint à
 `europe/luxembourg` seul — jamais un extrait continental ou l'Europe entière par
 défaut (30 Go). Cadence recommandée : mensuelle (§7.4), Geofabrik republiant ses

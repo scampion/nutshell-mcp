@@ -384,3 +384,17 @@ def test_sync_luxembourg_reel(data_dir, monkeypatch: pytest.MonkeyPatch):
     assert report2.ok
     assert not report2.updated_items
     assert "extract:luxembourg" in report2.unchanged_items
+
+
+def test_configured_extracts_mots_cles(monkeypatch):
+    from nutshell_mcp import ingest_osm
+
+    monkeypatch.setenv("NUTSHELL_OSM_EXTRACTS", "eu27,europe/switzerland,europe/belgium")
+    extracts = ingest_osm.configured_extracts()
+    assert "europe/belgium" in extracts and "europe/switzerland" in extracts
+    assert "europe/france" in extracts and "europe/norway" not in extracts
+    assert len(extracts) == len(set(extracts))  # pas de doublon
+
+    monkeypatch.setenv("NUTSHELL_OSM_EXTRACTS", "inconnu")
+    with pytest.raises(RuntimeError, match="mot-clé inconnu"):
+        ingest_osm.configured_extracts()

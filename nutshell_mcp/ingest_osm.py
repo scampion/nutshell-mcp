@@ -109,16 +109,47 @@ _TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 
 # ------------------------------------------------------------------- config
 
+#: États membres de l'UE (codes NUTS) pour le mot-clé ``eu27``.
+EU27 = frozenset([
+    "AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "ES", "FI", "FR", "HR", "HU",
+    "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK",
+])
+
+
+def _expand_keyword(keyword: str) -> list[str]:
+    """``europe`` → tous les pays Geofabrik présents dans le référentiel NUTS0 ;
+    ``eu27`` → les États membres. Les extraits sont traités un par un et chaque
+    ``.pbf`` est purgé après usage : le pic disque reste celui du plus gros pays
+    (~4,5 Go), mais le volume total téléchargé approche 30 Go pour ``europe``."""
+    if keyword == "eu27":
+        wanted = EU27
+    elif keyword == "europe":
+        if not geo.is_available():
+            raise RuntimeError(
+                "NUTSHELL_OSM_EXTRACTS=europe nécessite le référentiel geo : lancer "
+                "python -m nutshell_mcp.sync --source geo"
+            )
+        wanted = {z["geo_code"] for z in geo.zones("NUTS0")}
+    else:
+        raise RuntimeError(f"mot-clé inconnu dans NUTSHELL_OSM_EXTRACTS : '{keyword}'")
+    return [f"europe/{name}" for name, code in GEOFABRIK_COUNTRY.items() if code in wanted]
+
+
 def configured_extracts() -> list[str]:
     """Extraits Geofabrik à synchroniser (``continent/pays``), depuis l'environnement.
 
-    ``NUTSHELL_OSM_EXTRACTS="europe/luxembourg,europe/belgium"``. Défaut :
-    :data:`DEFAULT_EXTRACTS`.
+    ``NUTSHELL_OSM_EXTRACTS="europe/luxembourg,europe/belgium"``, ou les
+    mots-clés ``europe`` / ``eu27`` (voir :func:`_expand_keyword`), combinables
+    avec des extraits explicites. Défaut : :data:`DEFAULT_EXTRACTS`.
     """
     raw = os.environ.get("NUTSHELL_OSM_EXTRACTS", "")
     if not raw.strip():
         return list(DEFAULT_EXTRACTS)
-    return [e.strip() for e in raw.split(",") if e.strip()]
+    out: list[str] = []
+    for item in (e.strip() for e in raw.split(",") if e.strip()):
+        expanded = _expand_keyword(item.lower()) if "/" not in item else [item]
+        out.extend(e for e in expanded if e not in out)
+    return out
 
 
 def _extract_name(extract: str) -> str:
