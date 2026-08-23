@@ -53,6 +53,8 @@ Variables d'environnement
                                    (défaut : dernière année complète)
 ``NUTSHELL_CDS_COUNTRIES``         ``LU,BE,FR`` — restreint le périmètre spatial
                                    (défaut : tout le référentiel, coûteux)
+``NUTSHELL_CDS_BBOX``              ``-12,34,35,72`` — emprise imposée (ouest,sud,
+                                   est,nord) ; exclut les zones hors emprise
 ``NUTSHELL_ARCO_SAMPLES_PER_MONTH`` pas de temps échantillonnés par mois (4)
 ``NUTSHELL_ARCO_STORE``            URL zarr alternative
 ``NUTSHELL_RASTER_DIR``            racine des rasters du fournisseur ``local``
@@ -153,6 +155,29 @@ def target_years() -> list[int]:
 def target_countries() -> list[str]:
     """Codes pays du périmètre (``NUTSHELL_CDS_COUNTRIES``), vide = tout le référentiel."""
     return [c.strip().upper() for c in _env("NUTSHELL_CDS_COUNTRIES").split(",") if c.strip()]
+
+
+def target_bbox() -> tuple[float, float, float, float] | None:
+    """Emprise imposée (``NUTSHELL_CDS_BBOX=ouest,sud,est,nord``), ou ``None``.
+
+    Sert à exclure les régions ultrapériphériques (Guadeloupe, Réunion, Açores,
+    Canaries…) qui, incluses par leur pays, étirent l'emprise d'une requête CDS
+    de -63° à +56° de longitude. Les zones entièrement hors de cette emprise
+    sont ignorées (comptées dans le rapport). Europe continentale : ``-12,34,35,72``.
+    """
+    raw = _env("NUTSHELL_CDS_BBOX")
+    if not raw.strip():
+        return None
+    parts = [float(x) for x in raw.split(",")]
+    if len(parts) != 4 or parts[0] >= parts[2] or parts[1] >= parts[3]:
+        raise CdsError(
+            f"NUTSHELL_CDS_BBOX invalide : '{raw}' (attendu ouest,sud,est,nord, ex. -12,34,35,72)"
+        )
+    return parts[0], parts[1], parts[2], parts[3]
+
+
+def _intersects(a, b) -> bool:
+    return not (a[2] < b[0] or a[0] > b[2] or a[3] < b[1] or a[1] > b[3])
 
 
 def raster_dir() -> Path:
@@ -876,12 +901,23 @@ def sync(specs: list, full: bool = False) -> SyncReport:
             f"({', '.join(countries) if countries else 'non défini'}) et le référentiel geo.",
         )
         return report
+    forced_bbox = target_bbox()
+    dropped = 0
+    if forced_bbox:
+        for level, group in features.items():
+            kept = [f for f in group if _intersects(features_bbox([f]), forced_bbox)]
+            dropped += len(group) - len(kept)
+            features[level] = kept
     everything = [f for group in features.values() for f in group]
-    bbox = features_bbox(everything)
+    if not everything:
+        report.failed("périmètre", "aucune zone dans l'emprise NUTSHELL_CDS_BBOX")
+        return report
+    bbox = forced_bbox or features_bbox(everything)
     scope = ", ".join(countries) if countries else "référentiel complet"
     report.note(
         f"périmètre {scope} : {len(everything)} zones sur {len(features)} niveau(x), "
         f"emprise {bbox[0]:.1f}/{bbox[1]:.1f} → {bbox[2]:.1f}/{bbox[3]:.1f}"
+        + (f" (NUTSHELL_CDS_BBOX ; {dropped} zones hors emprise ignorées)" if forced_bbox else "")
     )
 
     # -- années à produire par indicateur

@@ -283,12 +283,13 @@ son absence, l'erreur nomme le chemin attendu et l'URL de téléchargement.
 | `NUTSHELL_CDS_PROVIDER` | `cds` \| `arco` \| `local` | `cds` si clé, sinon `arco` |
 | `NUTSHELL_CDS_YEARS` | `2023`, `2020,2023`, `2020-2023` | dernière année complète |
 | `NUTSHELL_CDS_COUNTRIES` | périmètre spatial, ex. `LU,BE,FR` | tout le référentiel |
+| `NUTSHELL_CDS_BBOX` | emprise imposée `ouest,sud,est,nord` (ex. `-12,34,35,72` = Europe continentale) ; les zones hors emprise sont ignorées | emprise des zones |
 | `NUTSHELL_ARCO_SAMPLES_PER_MONTH` | pas de temps échantillonnés par mois | `4` |
 | `NUTSHELL_RASTER_DIR` | racine des rasters du fournisseur `local` | `{données}/rasters` |
 | `NUTSHELL_CDS_KEEP_RASTERS` | conserve les rasters intermédiaires (debug) | purge |
 | `NUTSHELL_CDS_TIMEOUT` / `NUTSHELL_CDS_POLL` | attente et scrutation CDS (s) | `3600` / `30` |
 
-`NUTSHELL_CDS_COUNTRIES` est le levier de coût : sans lui, l'emprise couvre tout
+`NUTSHELL_CDS_COUNTRIES` et `NUTSHELL_CDS_BBOX` sont les leviers de coût : sans eux, l'emprise couvre tout
 le référentiel GISCO (y compris les régions ultrapériphériques, de la Guadeloupe
 à La Réunion), soit une requête CDS beaucoup plus lourde et quelques milliers de
 zones à agréger.

@@ -652,3 +652,29 @@ def test_arco_reel_deux_pas_de_temps(data_dir, geometries, spec_lst, monkeypatch
         provider.close()
         raster.path.unlink(missing_ok=True)
     assert config.work_dir().exists()
+
+
+def test_target_bbox(monkeypatch):
+    from nutshell_mcp import ingest_cds as cds
+
+    monkeypatch.delenv("NUTSHELL_CDS_BBOX", raising=False)
+    assert cds.target_bbox() is None
+    monkeypatch.setenv("NUTSHELL_CDS_BBOX", "-12,34,35,72")
+    assert cds.target_bbox() == (-12.0, 34.0, 35.0, 72.0)
+    monkeypatch.setenv("NUTSHELL_CDS_BBOX", "35,34,-12,72")
+    with pytest.raises(cds.CdsError, match="NUTSHELL_CDS_BBOX invalide"):
+        cds.target_bbox()
+
+
+def test_intersects_exclut_les_regions_ultraperipheriques():
+    from nutshell_mcp import ingest_cds as cds
+
+    europe = (-12.0, 34.0, 35.0, 72.0)
+    guadeloupe = cds.features_bbox([{"type": "Feature", "geometry": {
+        "type": "Polygon", "coordinates": [[[-61.8, 15.9], [-61.0, 15.9], [-61.0, 16.5],
+                                           [-61.8, 16.5], [-61.8, 15.9]]]}}])
+    paris = cds.features_bbox([{"type": "Feature", "geometry": {
+        "type": "Polygon", "coordinates": [[[2.2, 48.8], [2.5, 48.8], [2.5, 48.9],
+                                           [2.2, 48.9], [2.2, 48.8]]]}}])
+    assert not cds._intersects(guadeloupe, europe)
+    assert cds._intersects(paris, europe)
