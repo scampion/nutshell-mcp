@@ -110,7 +110,11 @@ Garde-fous : 5 indicateurs et 100 zones maximum par appel ; sans filtre
 temporel, les 3 dernières périodes ; 400 lignes maximum, toute troncature
 indiquant l'action corrective. Les crochets après une valeur portent le flag
 qualité (`p` provisoire, `d` définition différente, `recoded`,
-`osm_completeness_unknown`…).
+`osm_completeness_unknown`…). Les indicateurs `SNAPSHOT` (comptages OSM datés
+du mois de l'extrait) décrivent l'état courant : leur dernière valeur est
+répétée sur chaque ligne de période de la zone, marquée `[snapshot 2026-08]`,
+hors fenêtre temporelle, avec une ligne de rappel de date et de qualité
+(ADR-L1-15).
 
 Toute erreur est actionnable :
 

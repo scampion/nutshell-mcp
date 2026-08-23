@@ -258,6 +258,7 @@ def query(
     time_from: str = "",
     time_to: str = "",
     last_n_periods: int = DEFAULT_LAST_N_PERIODS,
+    snapshot_indicators: Sequence[str] = (),
 ) -> tuple[list[str], list[list[str]], dict[str, dict]]:
     """Interroge la table canonique et renvoie les lignes **pivotées**.
 
@@ -265,55 +266,101 @@ def query(
 
     - ``colonnes`` = ``["geo_code", "time", indicateur_1, …]`` ;
     - ``lignes`` = valeurs formatées, triées par zone puis période décroissante ;
-    - ``provenance`` = ``{indicateur: {"source", "source_date", "ingested_at"}}``.
+    - ``provenance`` = ``{indicateur: {"source", "source_date", "ingested_at"}}``,
+      complété de ``"snapshot_time"`` et ``"snapshot_quality"`` pour les instantanés.
 
     Sans filtre temporel, seules les ``last_n_periods`` dernières périodes
-    présentes (toutes zones et indicateurs confondus) sont renvoyées.
-    """
-    paths = _glob(indicators)
-    if not paths:
-        return ["geo_code", "time", *indicators], [], {}
+    présentes (toutes zones et indicateurs périodiques confondus) sont renvoyées.
 
-    where = ["indicator IN (" + ",".join("?" * len(indicators)) + ")"]
-    args: list[Any] = list(indicators)
-    if zones:
-        where.append("geo_code IN (" + ",".join("?" * len(zones)) + ")")
-        args += list(zones)
-    clause, targs = _time_clause(time_from, time_to)
-    if clause:
-        where.append(clause)
-        args += targs
+    Les ``snapshot_indicators`` (fréquence ``SNAPSHOT``, ex. comptages OSM datés
+    du mois de l'extrait) décrivent l'état courant d'une zone, pas une période :
+    ils ne sont pas filtrés par ``time_from``/``time_to``, ne comptent pas dans
+    les dernières périodes, et leur valeur la plus récente est **répétée sur
+    chaque ligne de période de la zone** avec le marqueur ``[snapshot AAAA-MM]``.
+    Une zone qui n'a que des instantanés garde une ligne datée de l'instantané.
+    """
+    snapshots = [i for i in indicators if i in set(snapshot_indicators)]
+    periodic = [i for i in indicators if i not in set(snapshots)]
+    empty: tuple[list[str], list[list[str]], dict[str, dict]] = (
+        ["geo_code", "time", *indicators], [], {},
+    )
 
     con = duckdb.connect()
-    base = (
+    select = (
         "SELECT indicator, geo_code, time, value, unit, quality, source, "
         "source_date, ingested_at "
-        "FROM read_parquet(?, hive_partitioning=true, union_by_name=true) "
-        "WHERE " + " AND ".join(where)
+        "FROM read_parquet(?, hive_partitioning=true, union_by_name=true) WHERE "
     )
-    rows = con.execute(base, [paths, *args]).fetchall()
-    if not rows:
-        return ["geo_code", "time", *indicators], [], {}
 
-    if not time_from and not time_to and last_n_periods > 0:
+    def _fetch(ids: list[str], with_time: bool) -> list[tuple]:
+        paths = _glob(ids)
+        if not paths:
+            return []
+        where = ["indicator IN (" + ",".join("?" * len(ids)) + ")"]
+        args: list[Any] = list(ids)
+        if zones:
+            where.append("geo_code IN (" + ",".join("?" * len(zones)) + ")")
+            args += list(zones)
+        if with_time:
+            clause, targs = _time_clause(time_from, time_to)
+            if clause:
+                where.append(clause)
+                args += targs
+        return con.execute(select + " AND ".join(where), [paths, *args]).fetchall()
+
+    rows = _fetch(periodic, with_time=True) if periodic else []
+    snap_rows = _fetch(snapshots, with_time=False) if snapshots else []
+    if not rows and not snap_rows:
+        return empty
+
+    if rows and not time_from and not time_to and last_n_periods > 0:
         periods = sorted({r[2] for r in rows}, key=_period_key, reverse=True)[:last_n_periods]
         keep = set(periods)
         rows = [r for r in rows if r[2] in keep]
 
     provenance: dict[str, dict] = {}
+
+    def _note_provenance(indicator, source, src_date, ing):
+        prev = provenance.get(indicator)
+        if prev is None or (src_date or "") > (prev["source_date"] or ""):
+            provenance[indicator] = {
+                "source": source, "source_date": src_date, "ingested_at": ing,
+            }
+
     pivot: dict[tuple[str, str], dict[str, str]] = {}
     for indicator, geo_code, time, value, _unit, quality, source, src_date, ing in rows:
         cell = _format(value)
         if quality:
             cell += f" [{quality}]"
         pivot.setdefault((geo_code, time), {})[indicator] = cell
-        prev = provenance.get(indicator)
-        if prev is None or (src_date or "") > (prev["source_date"] or ""):
-            provenance[indicator] = {
-                "source": source,
-                "source_date": src_date,
-                "ingested_at": ing,
-            }
+        _note_provenance(indicator, source, src_date, ing)
+
+    # Instantanés : dernière valeur par (indicateur, zone), répétée sur les
+    # lignes périodiques de la zone ; ligne propre si la zone n'en a aucune.
+    latest: dict[tuple[str, str], tuple] = {}
+    for r in snap_rows:
+        key = (r[0], r[1])
+        if key not in latest or _period_key(r[2]) > _period_key(latest[key][2]):
+            latest[key] = r
+    zones_with_periods = {k[0] for k in pivot}
+    for (indicator, geo_code), r in latest.items():
+        _, _, time, value, _unit, quality, source, src_date, ing = r
+        _note_provenance(indicator, source, src_date, ing)
+        meta = provenance[indicator]
+        meta["snapshot_time"] = max(time, meta.get("snapshot_time") or "")
+        if quality:
+            meta.setdefault("snapshot_quality", set()).add(quality)
+        if geo_code in zones_with_periods:
+            meta["snapshot_repeated"] = True
+            cell = f"{_format(value)} [snapshot {time}]"
+            for key, cells in pivot.items():
+                if key[0] == geo_code:
+                    cells[indicator] = cell
+        else:
+            cell = _format(value)
+            if quality:
+                cell += f" [{quality}]"
+            pivot.setdefault((geo_code, time), {})[indicator] = cell
 
     # Toutes les colonnes demandées sont conservées, même sans valeur sur la
     # fenêtre : une colonne vide est une information, une colonne disparue non.

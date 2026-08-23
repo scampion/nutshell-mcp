@@ -179,6 +179,22 @@ def _provenance(provenance: dict[str, dict]) -> str:
     return "[Source : " + ", ".join(parts) + "]"
 
 
+def _snapshot_note(provenance: dict[str, dict]) -> str | None:
+    """Explique les cellules ``[snapshot AAAA-MM]`` et rappelle leur qualité."""
+    parts = []
+    for indicator, meta in provenance.items():
+        if not meta.get("snapshot_repeated"):
+            continue
+        quals = sorted(meta.get("snapshot_quality") or ())
+        suffix = f", {', '.join(quals)}" if quals else ""
+        parts.append(f"{indicator} ({meta['snapshot_time']}{suffix})")
+    if not parts:
+        return None
+    return (
+        "[Instantanés, état courant répété sur chaque période : " + ", ".join(parts) + "]"
+    )
+
+
 def _missing_note(indicator_ids: list[str], provenance: dict[str, dict]) -> str | None:
     """Signale les indicateurs demandés sans aucune valeur sur la fenêtre."""
     missing = [i for i in indicator_ids if i not in provenance]
@@ -383,6 +399,7 @@ async def get_indicators(
     columns, rows, provenance = canonical.query(
         [s.id for s in specs], [z["geo_code"] for z in resolved],
         time_from, time_to, LAST_N_PERIODS,
+        snapshot_indicators=[s.id for s in specs if s.frequency == "SNAPSHOT"],
     )
     if not rows:
         window = (
@@ -404,6 +421,9 @@ async def get_indicators(
     note = _missing_note([s.id for s in specs], provenance)
     if note:
         out.append(note)
+    snap = _snapshot_note(provenance)
+    if snap:
+        out.append(snap)
     out.append(_provenance(provenance))
     return "\n".join(out)
 

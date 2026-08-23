@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from nutshell_mcp import server
+from nutshell_mcp import indicators, registry, server
 
 
 async def test_sept_tools_exactement():
@@ -165,3 +165,62 @@ async def test_provenance_multi_source(materialized):
     assert line == (
         "[Source : copernicus (v2023), eurostat (21.08.2026), osm (extrait 2026-08)]"
     )
+
+
+# ------------------------------------------------------------ instantanés
+
+@pytest.fixture
+def with_snapshot(materialized):
+    """Ajoute un instantané OSM (hospitals_count) à FR10 et à BE10."""
+    spec = registry.get("hospitals_count")
+    indicators.write_partition(
+        spec,
+        [
+            {"geo_code": "FR10", "time": "2026-07", "value": 40.0,
+             "quality": "osm_completeness_unknown"},
+            {"geo_code": "FR10", "time": "2026-08", "value": 41.0,
+             "quality": "osm_completeness_unknown"},
+            {"geo_code": "BE10", "time": "2026-08", "value": 38.0,
+             "quality": "osm_completeness_unknown"},
+        ],
+        source_date="extrait 2026-08",
+    )
+    return materialized
+
+
+async def test_snapshot_repete_sur_chaque_periode(with_snapshot):
+    out = await server.get_indicators(["gdp_per_capita", "hospitals_count"], ["FR10"])
+    lines = out.splitlines()
+    assert lines[0] == "geo_code | time | gdp_per_capita | hospitals_count"
+    # 3 dernières périodes *périodiques* : l'instantané 2026-08 n'en fait pas partie
+    assert [ln.split(" | ")[1] for ln in lines[1:4]] == ["2023", "2022", "2021"]
+    # dernier instantané (2026-08, pas 2026-07) répété sur chaque ligne
+    assert all(ln.endswith("41 [snapshot 2026-08]") for ln in lines[1:4])
+    assert "[Instantanés, état courant répété sur chaque période : " \
+           "hospitals_count (2026-08, osm_completeness_unknown)]" in lines
+    assert lines[-1] == "[Source : eurostat (21.08.2026), osm (extrait 2026-08)]"
+
+
+async def test_snapshot_ignore_la_fenetre_temporelle(with_snapshot):
+    out = await server.get_indicators(
+        ["gdp_per_capita", "hospitals_count"], ["FR10"], "2020", "2021"
+    )
+    lines = out.splitlines()
+    assert [ln.split(" | ")[1] for ln in lines[1:3]] == ["2021", "2020"]
+    assert all("41 [snapshot 2026-08]" in ln for ln in lines[1:3])
+
+
+async def test_snapshot_seul_garde_sa_ligne(with_snapshot):
+    out = await server.get_indicators(["hospitals_count"], ["FR10", "BE10"])
+    lines = out.splitlines()
+    assert lines[1] == "BE10 | 2026-08 | 38 [osm_completeness_unknown]"
+    assert lines[2] == "FR10 | 2026-08 | 41 [osm_completeness_unknown]"
+    assert not any(ln.startswith("[Instantanés") for ln in lines)
+
+
+async def test_snapshot_zone_sans_periode_garde_sa_ligne(with_snapshot):
+    # BE10 a du PIB en 2023 seulement ; FRK2 n'a pas d'instantané : colonne vide.
+    out = await server.get_indicators(["gdp_per_capita", "hospitals_count"], ["BE10", "FRK2"])
+    lines = out.splitlines()
+    assert lines[1] == "BE10 | 2023 | 71200 | 38 [snapshot 2026-08]"
+    assert lines[2] == "FRK2 | 2023 | 42400 | "

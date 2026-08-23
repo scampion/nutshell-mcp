@@ -228,6 +228,28 @@ conformément à sa conservation demandée « comme aujourd'hui ».
 
 ---
 
+## ADR-L1-15. Les instantanés sont répétés sur chaque période de la zone
+
+**Contexte.** §6.1 date les indicateurs `SNAPSHOT` (comptages OSM) du mois de
+l'extrait (`2026-08`) alors que les autres sont annuels/trimestriels. Dans le
+pivot de `get_indicators`, la jointure recherchée par l'agent se retrouvait
+alors sur deux lignes par zone (`2026-08` pour OSM, `2023` pour le reste) — peu
+lisible pour un 27B, et l'instantané sortait de toute fenêtre `time_from/time_to`.
+
+**Décision (validée le 23 août 2026).** Un instantané décrit l'état courant, pas
+une période : sa dernière valeur est **répétée sur chaque ligne de période de la
+zone** avec le marqueur `[snapshot AAAA-MM]` ; il n'est pas filtré par la fenêtre
+temporelle et ne compte pas dans les « 3 dernières périodes ». Une ligne
+`[Instantanés, état courant répété sur chaque période : hospitals_count (2026-08,
+osm_completeness_unknown)]` rappelle la date et la qualité. Une zone qui n'a que
+des instantanés garde sa ligne datée de l'instantané, cellules avec leur qualité.
+
+**Conséquence.** Une seule ligne par zone × période porte les trois sources ; la
+date et la qualité de l'instantané restent tracées dans la note, pas dans chaque
+cellule (P5, cellules courtes).
+
+---
+
 ## Lot 2 — OSM
 
 ### ADR-L2-1. Périmètre configuré par variable d'environnement, défaut Luxembourg seul
