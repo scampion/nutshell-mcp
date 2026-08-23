@@ -575,3 +575,26 @@ du pipeline était silencieusement remplacé par un rapport vide — les donnée
 **Conséquence.** Un seul objet module, une seule classe `SyncReport`, et le
 piège est neutralisé pour les deux pipelines (lot 2 compris) sans toucher au
 contrat documenté.
+
+### ADR-L2-10. Export osmium limité aux clés du registre ; md5 relu après téléchargement
+
+**Contexte.** Premier passage `NUTSHELL_OSM_EXTRACTS=europe` en production : 12
+pays sur 42 échouaient dans `ST_Read` (« duplicate column name "fixme" »,
+`ref:HU:om`, `phone:nl`…) — `osmium export` émet toutes les clés OSM en
+propriétés GeoJSON et DuckDB, insensible à la casse, refuse un fichier où deux
+clés ne diffèrent que par la casse. L'Allemagne échouait sur « md5 invalide » :
+Geofabrik avait republié l'extrait pendant les ~4 Go de téléchargement, le
+sidecar lu avant ne correspondait plus.
+
+**Décision.** (1) `osmium export -c` avec `{"include_tags": [clés du registre]}` :
+seules les clés réellement utilisées (`amenity`, `railway`, …) deviennent des
+colonnes, en casse exacte. (2) En cas d'écart md5, le sidecar est relu une fois
+après téléchargement ; si le fichier correspond à la nouvelle version, il est
+accepté et c'est ce md5 qui est stocké — sinon c'est une corruption réelle et
+le fichier est rejeté.
+
+**Conséquence.** Le GeoParquet POI ne porte plus que `@type, @id, <clés>, geom`
+— plus léger et stable ; un extrait republié en cours de route ne fait plus
+échouer le lot. Rappel : la partition canonique est l'union des extraits
+*configurés* lors du sync (ADR-L2-1) — lancer toujours avec le même
+`NUTSHELL_OSM_EXTRACTS` (le mettre dans l'environnement du cron).

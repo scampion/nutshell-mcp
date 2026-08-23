@@ -57,6 +57,7 @@ représentations.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -245,7 +246,17 @@ def _fetch_md5(client: httpx.Client, url: str) -> str:
     return r.text.strip().split()[0]
 
 
-def _download_pbf(client: httpx.Client, url: str, dest: Path, expected_md5: str) -> None:
+def _download_pbf(
+    client: httpx.Client, url: str, dest: Path, expected_md5: str, md5_url: str = ""
+) -> str:
+    """Télécharge ``url`` vers ``dest`` en vérifiant le md5 ; renvoie le md5 effectif.
+
+    Geofabrik republie chaque extrait quotidiennement : un ``.pbf`` de plusieurs
+    Go peut être remplacé *pendant* son téléchargement, auquel cas le sidecar lu
+    avant ne correspond plus. En cas d'écart, le sidecar est relu une fois ; si le
+    fichier téléchargé correspond à la nouvelle version, il est accepté. Sinon
+    c'est une corruption réelle et le fichier est rejeté.
+    """
     tmp = dest.with_suffix(dest.suffix + ".tmp")
     dest.parent.mkdir(parents=True, exist_ok=True)
     digest = hashlib.md5()  # vérification d'intégrité (fournie par Geofabrik), pas cryptographique
@@ -255,12 +266,28 @@ def _download_pbf(client: httpx.Client, url: str, dest: Path, expected_md5: str)
             for chunk in r.iter_bytes(1 << 20):
                 fh.write(chunk)
                 digest.update(chunk)
-    if digest.hexdigest() != expected_md5:
+    actual = digest.hexdigest()
+    if actual != expected_md5 and md5_url:
+        expected_md5 = _fetch_md5(client, md5_url)  # l'extrait a pu changer entre-temps
+    if actual != expected_md5:
         tmp.unlink(missing_ok=True)
         raise RuntimeError(
-            f"md5 invalide pour {dest.name} (attendu {expected_md5}, obtenu {digest.hexdigest()})"
+            f"md5 invalide pour {dest.name} (attendu {expected_md5}, obtenu {actual})"
         )
     tmp.replace(dest)
+    return actual
+
+
+def _export_config(tag_pairs: list[tuple[str, str]]) -> str:
+    """Config JSON d'``osmium export`` : n'exporter que les clés de tags du registre.
+
+    Sans ``include_tags``, toutes les clés OSM deviennent des colonnes GeoJSON et
+    DuckDB (insensible à la casse) refuse un fichier où ``fixme`` et ``FIXME``,
+    ou ``ref:HU:om`` et ``ref:hu:om``, coexistent — constaté sur une dizaine de
+    pays européens. Les clés demandées sont comparées en casse exacte.
+    """
+    keys = sorted({key for key, _ in tag_pairs})
+    return json.dumps({"include_tags": keys})
 
 
 # ---------------------------------------------------------------- par extrait
@@ -309,19 +336,21 @@ def _sync_extract(
         pbf_path = work / f"{name}.osm.pbf"
         filtered_pbf = work / f"{name}.filtered.osm.pbf"
         filtered_geojson = work / f"{name}.filtered.geojson"
+        export_cfg = work / f"{name}.export.json"
         try:
-            _download_pbf(client, pbf_url, pbf_path, remote_md5)
+            remote_md5 = _download_pbf(client, pbf_url, pbf_path, remote_md5, md5_url)
             timestamp = _fileinfo_timestamp(pbf_path)
             _run(["osmium", "tags-filter", "-o", str(filtered_pbf), str(pbf_path),
                   *tag_exprs, "--overwrite"])
+            export_cfg.write_text(_export_config(tag_pairs))
             _run(["osmium", "export", "-f", "geojson", "-a", "type,id",
-                  "--geometry-types", "point,polygon",
+                  "-c", str(export_cfg), "--geometry-types", "point,polygon",
                   "-o", str(filtered_geojson), str(filtered_pbf), "--overwrite"])
             n = _refilter_to_geoparquet(filtered_geojson, tag_pairs, poi_path)
         finally:
             # work/ est purgeable : le .pbf source (le plus volumineux) est
             # re-téléchargeable, seul le GeoParquet filtré (quelques Ko-Mo) est pérenne.
-            for tmp in (pbf_path, filtered_pbf, filtered_geojson):
+            for tmp in (pbf_path, filtered_pbf, filtered_geojson, export_cfg):
                 tmp.unlink(missing_ok=True)
 
     store.set_sync_state("osm", md5_key, remote_md5)

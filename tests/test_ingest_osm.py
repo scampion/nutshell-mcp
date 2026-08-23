@@ -398,3 +398,64 @@ def test_configured_extracts_mots_cles(monkeypatch):
     monkeypatch.setenv("NUTSHELL_OSM_EXTRACTS", "inconnu")
     with pytest.raises(RuntimeError, match="mot-clé inconnu"):
         ingest_osm.configured_extracts()
+
+
+def test_export_config_ne_garde_que_les_cles_du_registre():
+    import json
+
+    cfg = json.loads(osm._export_config([("amenity", "hospital"), ("railway", "station"),
+                                         ("amenity", "school")]))
+    assert cfg == {"include_tags": ["amenity", "railway"]}
+
+
+class _FakeResponse:
+    def __init__(self, payload: bytes):
+        self._payload = payload
+        self.text = payload.decode()
+
+    def raise_for_status(self):
+        pass
+
+    def iter_bytes(self, _size):
+        yield self._payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeClient:
+    """Client httpx minimal : le sidecar .md5 change entre les deux lectures."""
+
+    def __init__(self, payload: bytes, md5_sequence: list[str]):
+        self.payload = payload
+        self.md5_sequence = list(md5_sequence)
+        self.md5_reads = 0
+
+    def stream(self, _method, _url):
+        return _FakeResponse(self.payload)
+
+    def get(self, _url):
+        self.md5_reads += 1
+        return _FakeResponse(f"{self.md5_sequence.pop(0)}  file.osm.pbf\n".encode())
+
+
+def test_download_pbf_accepte_un_extrait_republie_pendant_le_telechargement(tmp_path):
+    import hashlib
+
+    payload = b"nouvelle version de l'extrait"
+    good = hashlib.md5(payload).hexdigest()
+    client = _FakeClient(payload, [good])  # relu après téléchargement : correspond
+    dest = tmp_path / "x.osm.pbf"
+    assert osm._download_pbf(client, "u", dest, "md5-perime", "u.md5") == good
+    assert dest.read_bytes() == payload and client.md5_reads == 1
+
+
+def test_download_pbf_rejette_une_vraie_corruption(tmp_path):
+    client = _FakeClient(b"contenu corrompu", ["0" * 32])
+    dest = tmp_path / "x.osm.pbf"
+    with pytest.raises(RuntimeError, match="md5 invalide"):
+        osm._download_pbf(client, "u", dest, "1" * 32, "u.md5")
+    assert not dest.exists() and not dest.with_suffix(".pbf.tmp").exists()
