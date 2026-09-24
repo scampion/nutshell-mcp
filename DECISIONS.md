@@ -289,7 +289,7 @@ le client MCP (streamable HTTP : `initialize`, `tools/list`, `tools/call`, répo
 JSON ou SSE) et mène la boucle de tool calling avec le fournisseur choisi par le
 visiteur et **sa** clé. Deux formats couvrent les principaux fournisseurs :
 Messages API d'Anthropic (en-tête `anthropic-dangerous-direct-browser-access`) et
-chat completions compatible OpenAI (OpenAI, Google Gemini, Mistral, OpenRouter,
+chat completions compatible OpenAI (OpenAI, Google Gemini, Mistral, DeepSeek, OpenRouter,
 serveur local Ollama/LM Studio). OpenRouter est proposé par défaut : il accepte les
 appels navigateur, fournit une clé par OAuth PKCE sans copier-coller, et donne
 accès à des modèles ouverts de ~27B, la cible du projet (§8.5). Appels HTTP bruts

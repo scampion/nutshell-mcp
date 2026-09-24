@@ -84,6 +84,8 @@
       model: "gemini-2.5-flash", keyUrl: "https://aistudio.google.com/apikey" },
     mistral: { label: "Mistral AI", kind: "openai", base: "https://api.mistral.ai/v1",
       model: "mistral-small-latest", keyUrl: "https://console.mistral.ai/api-keys" },
+    deepseek: { label: "DeepSeek", kind: "openai", base: "https://api.deepseek.com/v1",
+      model: "deepseek-chat", keyUrl: "https://platform.deepseek.com/api_keys" },
     local: { label: "Local (Ollama, LM Studio…)", kind: "openai", base: "http://localhost:11434/v1",
       model: "gemma3:27b", keyOptional: true }
   };
