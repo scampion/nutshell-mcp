@@ -243,3 +243,8 @@ async def test_get_indicators_agregat_ue_renvoie_vers_le_grain_natif(materialize
 async def test_get_indicators_code_iso_grec(materialized):
     out = await server.get_indicators(["gdp_per_capita"], ["GR30"])
     assert "essayez 'EL30'" in out
+
+
+async def test_search_indicators_sans_resultat_renvoie_vers_search_datasets(materialized):
+    out = await server.search_indicators("tourist nights")
+    assert "search_datasets('tourist nights')" in out

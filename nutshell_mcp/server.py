@@ -257,7 +257,9 @@ async def search_indicators(query: str, source: str = "", limit: int = 10) -> st
         extra = f" Proches : {', '.join(close)}." if close else ""
         return (
             f"Aucun indicateur ne correspond à '{query}'.{extra} "
-            f"Registre complet ({len(known)}) : {', '.join(known)}."
+            f"Registre complet ({len(known)}) : {', '.join(known)}.\n"
+            f"Hors registre, tout le catalogue Eurostat reste interrogeable : "
+            f"search_datasets('{query}') puis get_structure et query_data."
         )
     lines = ["id | label | unité | freq | niveaux geo | source"]
     for hit in hits:
