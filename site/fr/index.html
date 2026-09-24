@@ -102,6 +102,14 @@
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
   tr:last-child td { border-bottom: 0; }
 
+  .cases { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+  .case { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+  .case h3 { margin: 0 0 4px; font-size: 1.1rem; }
+  .case .srcs { font-size: 0.8em; color: var(--gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px; }
+  .case blockquote { margin: 0 0 14px; padding: 0 0 0 12px; border-left: 3px solid var(--accent); color: var(--muted); font-size: 0.95em; }
+  .case .tablewrap { margin: 0 0 12px; }
+  .case p.note { margin: 0; font-size: 0.9em; color: var(--muted); }
+
   ul.checks { list-style: none; padding: 0; margin: 20px 0 0; }
   ul.checks li { padding-left: 26px; position: relative; margin-bottom: 10px; }
   ul.checks li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
@@ -189,7 +197,7 @@
         <div class="card">
           <div class="tag">Copernicus</div>
           <h3>Observation de la Terre</h3>
-          <p>Rasters climatiques et d'occupation du sol convertis en statistiques régionales — température de surface estivale, imperméabilisation des sols. Disponible sur les instances auto-hébergées (non matérialisé sur cette démo).</p>
+          <p>Rasters climatiques et d'occupation du sol convertis en statistiques régionales. Sur cette démo : température de surface estivale 2022–2024 pour 2 300 régions et villes d'Europe continentale (estimation échantillonnée).</p>
         </div>
         <div class="card">
           <div class="tag">Pensé pour les petits modèles</div>
@@ -242,6 +250,55 @@
       </ul>
       <p style="margin:18px 0 0">
         <a href="https://github.com/scampion/nutshell-mcp/blob/main/docs/examples.fr.md">Plus d’exemples de prompts et des enchaînements de tools qu’ils déclenchent →</a>
+      </p>
+    </div>
+  </section>
+
+  <section id="three-sources">
+    <div class="wrap">
+      <h2>Croiser les trois sources</h2>
+      <p class="sub">
+        Certaines questions exigent trois regards à la fois sur un territoire : <strong>qui y vit</strong>
+        (Eurostat), <strong>quel est le milieu</strong> (Copernicus) et
+        <strong>de quoi dispose-t-on</strong> (OpenStreetMap). Deux vrais runs avec Qwen3.8-27B,
+        chiffres vérifiés contre les données du serveur.
+      </p>
+      <div class="cases">
+        <div class="case">
+          <h3>Canicules et personnes âgées</h3>
+          <div class="srcs">Copernicus × Eurostat × OSM · NUTS3</div>
+          <blockquote>« Parmi les provinces d'Espagne et d'Italie, lesquelles cumulent les étés les plus chauds, la population la plus âgée et le moins d'hôpitaux pour 100 000 habitants ? »</blockquote>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>#</th><th>Province</th><th>65+ / 15–64</th><th>Hôpitaux</th><th>Pour 100k</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Asti (ITC17)</td><td class="num">45,2 %</td><td class="num">2</td><td class="num">0,97</td></tr>
+                <tr><td>2</td><td>Lecce (ITF45)</td><td class="num">42,6 %</td><td class="num">18</td><td class="num">2,35</td></tr>
+                <tr><td>3</td><td>Terni (ITI22)</td><td class="num">48,0 %</td><td class="num">4</td><td class="num">1,86</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note">L'assistant a jugé les comptages d'hôpitaux OSM « le maillon faible » et présenté son top 10 comme « une liste indicative, pas un ordre précis ».</p>
+        </div>
+        <div class="case">
+          <h3>Déménager avec de jeunes enfants</h3>
+          <div class="srcs">Copernicus × Eurostat × OSM · NUTS2</div>
+          <blockquote>« Allemagne ou Autriche : étés doux, faible chômage, le plus d'écoles et de gares possible rapporté à la population. »</blockquote>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>#</th><th>Région</th><th>Été</th><th>Chômage</th><th>Écoles / 1 000</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Oberösterreich</td><td class="num">19,7 °C</td><td class="num">3,8 %</td><td class="num">0,64</td></tr>
+                <tr><td>2</td><td>Steiermark</td><td class="num">18,4 °C</td><td class="num">4,4 %</td><td class="num">0,61</td></tr>
+                <tr><td>3</td><td>Lüneburg</td><td class="num">18,7 °C</td><td class="num">2,7 %</td><td class="num">0,49</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note">Un seul appel, 5 indicateurs issus de 3 sources sur 45 régions. L'assistant a aussi listé ce que les données ne disent pas : places en crèche, coût du logement, fréquence des trains.</p>
+        </div>
+      </div>
+      <p style="margin:20px 0 0">
+        <a href="https://github.com/scampion/nutshell-mcp/blob/main/docs/examples.fr.md#croiser-les-trois-sources">Prompts, réponses et transcripts complets →</a>
       </p>
     </div>
   </section>
