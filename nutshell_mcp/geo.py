@@ -386,6 +386,29 @@ def suggest(code: str, n: int = 3) -> list[str]:
     return difflib.get_close_matches(code.upper(), codes, n=n, cutoff=0.5)
 
 
+_AGGREGATES = ("EU", "EA", "EEA", "EFTA")
+
+
+def is_aggregate(code: str) -> bool:
+    """Agrégat Eurostat (EU27_2020, EA20…), hors référentiel géographique."""
+    code = code.upper()
+    return any(code == p or code.startswith((p + "2", p + "1", p + "_")) for p in _AGGREGATES)
+
+
+def hint(code: str) -> str | None:
+    """Explication d'un code non NUTS fréquent (ISO au lieu de NUTS, agrégat), ou ``None``."""
+    code = code.upper()
+    if code.startswith("GR"):
+        return (f"La Grèce est codée EL en NUTS (GR est le code ISO) : "
+                f"essayez '{'EL' + code[2:]}'.")
+    if code in ("UK", "GB") or code.startswith("UK"):
+        return "Le Royaume-Uni ne fait plus partie de la nomenclature NUTS (2021 et 2024)."
+    if is_aggregate(code):
+        return (f"'{code}' est un agrégat (UE, zone euro…), absent de la couche unifiée : "
+                "utilisez query_data sur le dataset Eurostat natif avec geo=EU27_2020.")
+    return None
+
+
 def levels_available() -> list[str]:
     """Niveaux effectivement présents dans le référentiel."""
     with _conn() as c:

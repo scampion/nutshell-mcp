@@ -224,3 +224,22 @@ async def test_snapshot_zone_sans_periode_garde_sa_ligne(with_snapshot):
     lines = out.splitlines()
     assert lines[1] == "BE10 | 2023 | 71200 | 38 [snapshot 2026-08]"
     assert lines[2] == "FRK2 | 2023 | 42400 | "
+
+
+# --------------------------------------------- codes non NUTS (ISO, agrégats)
+
+async def test_list_zones_parent_gr_renvoie_vers_el(materialized):
+    out = await server.list_zones("NUTS2", parent="GR")
+    assert "La Grèce est codée EL en NUTS" in out
+    assert "'EL'" in out
+
+
+async def test_get_indicators_agregat_ue_renvoie_vers_le_grain_natif(materialized):
+    out = await server.get_indicators(["gdp_per_capita"], ["EU27"])
+    assert "agrégat" in out and "query_data" in out and "EU27_2020" in out
+    assert "nama_10r_2gdp" in out
+
+
+async def test_get_indicators_code_iso_grec(materialized):
+    out = await server.get_indicators(["gdp_per_capita"], ["GR30"])
+    assert "essayez 'EL30'" in out

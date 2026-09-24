@@ -289,6 +289,9 @@ async def list_zones(level: str, parent: str = "", contains: str = "") -> str:
             f"Niveau '{level}' inconnu. Niveaux disponibles : {', '.join(available)}."
         )
     if parent and geo.zone(parent) is None:
+        hint = geo.hint(parent)
+        if hint:
+            return f"Zone parente '{parent}' inconnue. {hint}"
         close = geo.suggest(parent)
         extra = f" Vouliez-vous : {', '.join(close)} ?" if close else ""
         return f"Zone parente '{parent}' inconnue.{extra}"
@@ -366,6 +369,13 @@ async def get_indicators(
                     "Référentiel géographique absent. "
                     "Lancer : python -m nutshell_mcp.sync --source geo"
                 )
+            hint = geo.hint(code)
+            if hint and geo.is_aggregate(code):
+                datasets = [s.extraction.dataset for s in specs if s.source == "eurostat"]
+                if datasets:
+                    hint += f" Datasets de ces indicateurs : {', '.join(datasets)}."
+            if hint:
+                return f"Zone '{code}' inconnue. {hint}"
             close = geo.suggest(code)
             extra = f" Vouliez-vous : {', '.join(close)} ?" if close else ""
             return (
