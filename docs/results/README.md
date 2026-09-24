@@ -14,6 +14,12 @@ left out.
 | [05-new-indicator-yaml.md](05-new-indicator-yaml.md) | Qwen3.8-27B (OpenRouter) | |
 | [06-heat-ageing.md](06-heat-ageing.md) | Qwen3.8-27B (OpenRouter) | temperatures read from 2023, labelled 2024 — see example 6 |
 | [07-family-relocation.md](07-family-relocation.md) | Qwen3.8-27B (OpenRouter) | |
+| [08-tourism-heat-rail.md](08-tourism-heat-rail.md) | Qwen3.8-27B (OpenRouter) | third run, after both hints |
+| [08-tourism-heat-rail-run1.md](08-tourism-heat-rail-run1.md) | Qwen3.8-27B (OpenRouter) | GR search, 2023 read as 2024, invented Canaries value |
+| [08-tourism-heat-rail-run2.md](08-tourism-heat-rail-run2.md) | Qwen3.8-27B (OpenRouter) | drops the tourism part |
+| [09-schools-children.md](09-schools-children.md) | Qwen3.8-27B (OpenRouter) | |
+| [10-east-west-convergence.md](10-east-west-convergence.md) | Qwen3.8-27B (OpenRouter) | EU 2020 mean wrong in the answer — see example 10 |
+| [10-east-west-convergence-before-fix.md](10-east-west-convergence-before-fix.md) | Qwen3.8-27B (OpenRouter) | before the EU27 hint |
 
 ## How they were produced
 

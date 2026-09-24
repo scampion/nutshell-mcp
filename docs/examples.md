@@ -19,6 +19,9 @@ server validates and answers from local data.
 | 5 | [A new indicator in one YAML file](#5-a-new-indicator-in-one-yaml-file) | native grain → registry | the model drafts the YAML |
 | 6 | [Heatwaves and the elderly](#6-heatwaves-and-the-elderly) | unified layer, 3 batches | climate × ageing × hospitals (3 sources) |
 | 7 | [Moving with a young family](#7-moving-with-a-young-family) | one `get_indicators` call | 5 indicators from 3 sources |
+| 8 | [Summer tourism, heat and rail](#8-summer-tourism-heat-and-rail) | native grain + unified layer | monthly series × heat × rail (3 sources) |
+| 9 | [Schools and children](#9-schools-and-children) | registry → native grain | a denominator found in the catalogue |
+| 10 | [East–West convergence](#10-eastwest-convergence) | one `get_indicators` call, 11 years | time series, breaks and provisional values |
 
 ---
 
@@ -348,6 +351,122 @@ All figures in the table match the mirror. The model made "mild" explicit
 listed what the data cannot say: daycare places, cost of housing, train
 frequency rather than station counts, heatwave frequency rather than a summer
 mean, and the per-capita bias that favours small, sparsely populated regions.
+
+---
+
+## More questions
+
+## 8. Summer tourism, heat and rail
+
+```
+Summer tourism meets climate change. Among the NUTS2 regions of Spain, Italy,
+Greece and Croatia, which ones receive the most tourist nights, have the
+hottest summers, and how well are they served by rail relative to population?
+Give a top 8 with the figures, and say which conclusions the data does and
+does not support.
+```
+
+**Real run** with Qwen3.8-27B — [full transcript](results/08-tourism-heat-rail.md).
+Tourist nights are not in the registry: the model went to the native grain and
+chose the **monthly** series (`tour_occ_nin2m`) to sum June–August only, then
+crossed it with summer temperature (Copernicus) and stations per inhabitant
+(OSM + Eurostat) over 56 regions:
+
+| # | Region | Summer 2024 nights | Summer temp. 2024 | Stations / 100k inh. |
+|---|---|---|---|---|
+| 1 | Jadranska Hrvatska (HR03) | 63.0 M | 23.6 °C | 3.8 |
+| 2 | Cataluña (ES51) | 40.3 M | 23.9 °C | 5.3 |
+| 3 | Illes Balears (ES53) | 37.7 M | 26.9 °C | 2.9 |
+| 4 | Veneto (ITH3) | 37.0 M | 22.0 °C | 2.4 |
+| 5 | Andalucía (ES61) | 27.6 M | 27.7 °C | 2.4 |
+| 6 | Canarias (ES70) | 25.6 M | *no data* | 0 |
+| 7 | Notio Aigaio (EL42) | 24.3 M | 25.4 °C | 0 |
+| 8 | Emilia-Romagna (ITH5) | 23.0 M | 23.7 °C | 4.8 |
+
+Every figure in the table matches the mirror. The findings are the kind a
+planner would want: the hottest regions (Attica, Melilla, Puglia) are *not* the
+biggest night-receivers; volume and intensity pick different winners (Croatia's
+coast by volume, the Greek islands per inhabitant); the busiest summer
+destinations are among the *least* rail-served; and annual figures overstate
+Alpine "summer" tourism, which the monthly series corrects. It kept the Canaries
+in the ranking with their temperature marked missing (outside the Copernicus
+extent on this demo). One slip: it calls Cataluña, Veneto and Emilia-Romagna
+"land-locked hubs".
+
+> *How the server shaped this run.* The [first run](results/08-tourism-heat-rail-run1.md)
+> spent ten calls looking for Greece under `GR` (its NUTS code is `EL`), read
+> 2023 temperatures as 2024 and invented a ~24 °C summer for the Canaries. A
+> [second run](results/08-tourism-heat-rail-run2.md), after the `GR → EL` hint,
+> found Greece in one call but dropped the tourism part: `search_indicators`
+> said the registry had nothing and did not mention the catalogue. The server now
+> points to `search_datasets` in that case — this third run followed it.
+
+## 9. Schools and children
+
+```
+Where in France and Germany are schools scarcest relative to the number of
+children? Compare NUTS2 regions using the population aged under 15 and the
+number of schools. Give the 5 regions with the fewest schools per 1,000
+children and the 5 with the most, and explain the limits of this comparison.
+```
+
+**Real run** with Qwen3.8-27B — [full transcript](results/09-schools-children.md).
+The registry has no "children" indicator, so the model searched the catalogue,
+opened several structures and settled on `demo_r_pjangroup` (population by
+5-year age group, NUTS2). It summed the 0–4, 5–9 and 10–14 bands with
+`query_data` and crossed them with `schools_count` (OSM):
+
+| | Region | Under 15 | Schools | Per 1,000 children |
+|---|---|---|---|---|
+| fewest | Berlin (DE30) | 511,418 | 1,077 | 2.11 |
+| | Hamburg (DE60) | 265,637 | 561 | 2.11 |
+| | Darmstadt (DE71) | 580,000 | 1,391 | 2.40 |
+| most | Bourgogne (FRC1) | 244,642 | 2,434 | 9.95 |
+| | Limousin (FRI2) | 101,386 | 934 | 9.21 |
+| | Franche-Comté (FRC2) | 193,006 | 1,647 | 8.53 |
+
+Every figure matches the mirror. The interesting part is the model's own
+reading: the gap is mostly **structural, not a shortage** — France keeps a
+small primary school in almost every rural commune while German cities run
+fewer, larger schools. It also flagged that OSM tags every school type the same
+way, and that 0–5 year-olds are in the denominator but not in schools.
+
+## 10. East–West convergence
+
+```
+How have Poland, Romania, Czechia and Hungary converged with the rest of the
+EU since 2014? For their capital regions and one other NUTS2 region per country
+of your choice, show GDP per capita and unemployment over 2014-2024 and
+summarise the trend. Point out breaks in series and provisional values.
+```
+
+**Real run** with Qwen3.8-27B — [full transcript](results/10-east-west-convergence.md).
+One `get_indicators` call returned 11 years × 8 regions × 2 indicators, with
+their flags. To build an EU reference, the model then queried the 27 member
+states and averaged them:
+
+| Region | GDP / inh. 2014 | 2024 | % of EU27 mean, 2014 → 2024 |
+|---|---|---|---|
+| Praha (CZ01) | €33,200 | €62,400 | 127 % → 150 % |
+| Budapest (HU11) | €22,700 | €47,600 [p] | 87 % → 115 % |
+| Warszawa (PL91) | €23,000 | €45,300 [p] | 88 % → 109 % |
+| București-Ilfov (RO32) | €17,300 | €45,200 [p] | 66 % → 109 % |
+| Sud-Muntenia (RO31) | €6,400 | €13,200 [p] | 24 % → 32 % |
+
+Its conclusion: capitals have caught up with — or overtaken — the EU average,
+while the rest of each country lags far behind (Budapest 115 % vs Pest 44 %).
+Unemployment fell everywhere, except in Sud-Muntenia, back up to 7.3 %.
+
+**What we checked.** Regional series and the 2014 and 2024 EU means (€26,141 and
+€41,548) match the mirror; the 2020 mean is wrong in the answer (~€27,000
+instead of €31,233). The model says itself that an unweighted mean of 27
+countries, skewed by Ireland and Luxembourg, is only indicative. Its list of
+series breaks is partly wrong (it flags Warsaw GDP for 2021, which is not).
+
+> *The first run* ([transcript](results/10-east-west-convergence-before-fix.md))
+> asked for zone `EU27`, got "unknown zone" and dropped the EU comparison — and
+> placed Debrecen in HU31 and Cluj in RO12, both wrong. The server now explains
+> that `EU27` is an aggregate and points to the native datasets (`geo=EU27_2020`).
 
 ---
 
