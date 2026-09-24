@@ -349,12 +349,13 @@ def zones(level: str, parent: str | None = None, contains: str | None = None) ->
         else:
             sql += " AND geo_code LIKE ? AND geo_code <> ?"
             args += [f"{parent}%", parent]
-    if contains:
-        sql += " AND (lower(name) LIKE ? OR lower(geo_code) LIKE ?)"
-        args += [f"%{contains.lower()}%", f"%{contains.lower()}%"]
     sql += " ORDER BY geo_code"
     with _conn() as c:
         rows = c.execute(sql, args).fetchall()
+    if contains:
+        # Filtre en Python : lower() SQLite ne replie pas les accents.
+        needle = store.fold(contains)
+        rows = [r for r in rows if needle in store.fold(r[1] or "") or needle in store.fold(r[0])]
     return [
         {"geo_code": r[0], "name": r[1], "level": r[2], "parent": r[3]} for r in rows
     ]

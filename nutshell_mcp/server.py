@@ -442,7 +442,11 @@ async def search_datasets(query: str, limit: int = 10) -> str:
     hits = store.search_catalog(query, min(limit, 25))
     if not hits:
         return "Aucun dataset trouvé. Essayez des termes plus généraux, en anglais."
-    return "\n".join(f"{h['code']} | {h['title']} | {h['period']}" for h in hits)
+    out = [f"{h['code']} | {h['title']} | {h['period']}" for h in hits]
+    if hits[0]["partial"]:
+        out.insert(0, f"Aucun dataset ne contient tous les termes de '{query}' ; "
+                      "résultats contenant au moins l'un d'eux :")
+    return "\n".join(out)
 
 
 @mcp.tool()
@@ -459,6 +463,12 @@ async def get_structure(dataset: str) -> str:
     lines = [f"Dataset {dataset} — dimensions :"]
     for dim, info in structure.items():
         codes = info["codes"]
+        period = store.catalog_period(dataset) if dim == "time" else None
+        if period:
+            # La structure n'est chargée que sur la dernière période (lastTimePeriod=1).
+            lines.append(f"- time [{info['label']}] : {period[0]} → {period[1]} "
+                         "(filtrer avec time_from / time_to)")
+            continue
         shown = list(codes.items())[:MAX_CODES_SHOWN]
         extra = len(codes) - len(shown)
         body = ", ".join(f"{code} ({label})" for code, label in shown)
@@ -482,9 +492,23 @@ async def list_codes(dataset: str, dimension: str, contains: str = "") -> str:
         return (f"Dimension '{dimension}' inconnue."
                 + _suggest(dimension, list(structure)))
     codes = structure[dimension]["codes"]
-    needle = contains.lower()
-    hits = [(code, label) for code, label in codes.items()
-            if needle in code.lower() or needle in label.lower()]
+    # Codes commençant par le filtre d'abord, niveaux hauts en tête (ES, ES7, ES70,
+    # puis NUTS3), puis codes le contenant, puis libellés : « ES » ne doit pas être
+    # noyé sous « Bruxelles » ou « Hessen ».
+    needle = store.fold(contains)
+    ranked = []
+    for code, label in codes.items():
+        c = store.fold(code)
+        if c.startswith(needle):
+            rank = 0
+        elif needle in c:
+            rank = 1
+        elif needle in store.fold(label):
+            rank = 2
+        else:
+            continue
+        ranked.append(((rank, len(code) if rank == 0 else 0), (code, label)))
+    hits = [hit for _, hit in sorted(ranked, key=lambda r: r[0])]
     if not hits:
         return f"Aucun code ne contient '{contains}' dans {dimension}."
     shown = hits[:60]

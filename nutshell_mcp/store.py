@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import unicodedata
 
 from . import config
 
@@ -87,24 +88,56 @@ def replace_catalog(rows: list[dict]) -> None:
         c.execute("INSERT OR REPLACE INTO meta VALUES ('catalog_at', ?)", (str(time.time()),))
 
 
+def fold(text: str) -> str:
+    """Minuscules sans accents, pour comparer « Île-de-France » et « Ile-de-France »."""
+    decomposed = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
+
+
+def _fts_term(word: str) -> str:
+    """Terme FTS5 cité, en préfixe, pluriel anglais retiré : « regions » trouve « region »."""
+    stem = word[:-1] if len(word) > 3 and word.lower().endswith("s") else word
+    return '"' + stem.replace('"', '""') + '"*'
+
+
 def search_catalog(query: str, limit: int) -> list[dict]:
-    # Requête FTS5 : chaque terme est cité (guillemets doublés) pour neutraliser
-    # la syntaxe spéciale ; une requête malformée renvoie simplement vide.
-    terms = " ".join('"' + t.replace('"', '""') + '"' for t in query.split())
+    """Tous les termes d'abord ; à défaut, n'importe lequel (classé par pertinence).
+
+    Chaque résultat porte ``partial`` : True quand il vient du repli « un terme ou plus ».
+    """
+    # Termes cités (guillemets doublés) pour neutraliser la syntaxe FTS5 ; une
+    # requête malformée renvoie simplement vide.
+    terms = [_fts_term(t) for t in fold(query).split() if t.strip('"')]
     if not terms:
         return []
+    rows: list = []
+    partial = False
     with connect() as c:
-        try:
-            rows = c.execute(
-                """
-                SELECT code, title, data_start, data_end
-                FROM catalog WHERE catalog MATCH ? ORDER BY rank LIMIT ?
-                """,
-                (terms, limit),
-            ).fetchall()
-        except sqlite3.OperationalError:
-            return []
-    return [{"code": r[0], "title": r[1], "period": f"{r[2]}–{r[3]}"} for r in rows]
+        for joiner in (" ", " OR "):
+            try:
+                rows = c.execute(
+                    """
+                    SELECT code, title, data_start, data_end
+                    FROM catalog WHERE catalog MATCH ? ORDER BY rank LIMIT ?
+                    """,
+                    (joiner.join(terms), limit),
+                ).fetchall()
+            except sqlite3.OperationalError:
+                return []
+            if rows or len(terms) == 1:
+                break
+            partial = True
+    return [{"code": r[0], "title": r[1], "period": f"{r[2]}–{r[3]}", "partial": partial}
+            for r in rows]
+
+
+def catalog_period(dataset: str) -> tuple[str, str] | None:
+    """Première et dernière période du dataset d'après le catalogue, ou ``None``."""
+    with connect() as c:
+        row = c.execute(
+            "SELECT data_start, data_end FROM catalog WHERE code = ?", (dataset,)
+        ).fetchone()
+    return (row[0], row[1]) if row and row[0] and row[1] else None
 
 
 def catalog_last_update(dataset: str) -> str | None:
