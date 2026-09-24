@@ -7,7 +7,9 @@
 <meta name="description" content="An MCP server that gives your AI assistant European territorial data — Eurostat, Copernicus and OpenStreetMap — at a single grain: zone × indicator × period.">
 <link rel="alternate" hreflang="en" href="https://nutshell.scamp.fr/">
 <link rel="alternate" hreflang="fr" href="https://nutshell.scamp.fr/fr/">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23233a8b'/><g fill='%23f5c518'><circle cx='16' cy='6' r='1.6'/><circle cx='26' cy='16' r='1.6'/><circle cx='16' cy='26' r='1.6'/><circle cx='6' cy='16' r='1.6'/><circle cx='23' cy='9' r='1.6'/><circle cx='23' cy='23' r='1.6'/><circle cx='9' cy='23' r='1.6'/><circle cx='9' cy='9' r='1.6'/></g></svg>">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta property="og:image" content="https://nutshell.scamp.fr/logo.png">
+<meta property="og:title" content="nutshell-mcp — Europe in a nutshell">
 <style>
   :root {
     --bg: #fbfaf7; --surface: #ffffff; --ink: #1b1f2a; --muted: #5b6272;
@@ -52,6 +54,7 @@
   @media (max-width: 620px) { nav a.opt { display: none; } }
 
   .hero { padding: 64px 0 40px; }
+  .hero .logo { display: block; width: 160px; height: auto; border-radius: 18px; margin: 0 0 24px; }
   .hero h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 18px; }
   .hero h1 em { font-style: normal; color: var(--accent); }
   .hero p.lead { font-size: 1.15em; color: var(--muted); max-width: 42em; margin: 0 0 28px; }
@@ -140,6 +143,7 @@
 <main>
   <div class="hero">
     <div class="wrap">
+      <img class="logo" src="logo.png" width="160" height="160" alt="nutshell-mcp logo">
       <h1>Ask your AI assistant about <em>any European region</em>, and get sourced answers.</h1>
       <p class="lead">
         nutshell-mcp is an MCP server that brings Eurostat, Copernicus and OpenStreetMap

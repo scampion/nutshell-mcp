@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.png" alt="nutshell-mcp" width="200"></p>
+
 # nutshell-mcp — *Europe in a nutshell*
 
 🇫🇷 Français · [🇬🇧 English](README.md)
