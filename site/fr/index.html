@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>nutshell-mcp — Europe in a nutshell</title>
-<meta name="description" content="An MCP server that gives your AI assistant European territorial data — Eurostat, Copernicus and OpenStreetMap — at a single grain: zone × indicator × period.">
+<meta name="description" content="Un serveur MCP qui donne à votre assistant IA les données territoriales européennes — Eurostat, Copernicus et OpenStreetMap — sur un grain unique : zone × indicateur × période.">
 <link rel="alternate" hreflang="en" href="https://nutshell.scamp.fr/">
 <link rel="alternate" hreflang="fr" href="https://nutshell.scamp.fr/fr/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23233a8b'/><g fill='%23f5c518'><circle cx='16' cy='6' r='1.6'/><circle cx='26' cy='16' r='1.6'/><circle cx='16' cy='26' r='1.6'/><circle cx='6' cy='16' r='1.6'/><circle cx='23' cy='9' r='1.6'/><circle cx='23' cy='23' r='1.6'/><circle cx='9' cy='23' r='1.6'/><circle cx='9' cy='9' r='1.6'/></g></svg>">
@@ -128,11 +128,11 @@
   <div class="wrap">
     <a class="brand" href="#">nutshell<span>·</span>mcp</a>
     <nav>
-      <a class="opt" href="#example">Example</a>
-      <a class="opt" href="#connect">Connect</a>
-      <a href="#self-host">Self-host</a>
+      <a class="opt" href="#example">Exemple</a>
+      <a class="opt" href="#connect">Connexion</a>
+      <a href="#self-host">Auto-hébergement</a>
       <a href="https://github.com/scampion/nutshell-mcp">GitHub</a>
-      <a href="fr/" hreflang="fr" lang="fr">FR</a>
+      <a href="../" hreflang="en" lang="en">EN</a>
     </nav>
   </div>
 </header>
@@ -140,56 +140,56 @@
 <main>
   <div class="hero">
     <div class="wrap">
-      <h1>Ask your AI assistant about <em>any European region</em>, and get sourced answers.</h1>
+      <h1>Interrogez votre assistant IA sur <em>n’importe quelle région européenne</em> et obtenez des réponses sourcées.</h1>
       <p class="lead">
-        nutshell-mcp is an MCP server that brings Eurostat, Copernicus and OpenStreetMap
-        together at a single grain — <strong>zone × indicator × period</strong>. Your assistant
-        compares regions, crosses sources and tells you how reliable each figure is,
-        without ever writing a query.
+        nutshell-mcp est un serveur MCP qui réunit Eurostat, Copernicus et OpenStreetMap
+        sur un grain unique — <strong>zone × indicateur × période</strong>. Votre assistant
+        compare des régions, croise les sources et indique la fiabilité de chaque chiffre,
+        sans jamais écrire de requête.
       </p>
       <div class="cta">
-        <a class="btn primary" href="#connect">Connect in 1 minute</a>
-        <a class="btn ghost" href="https://github.com/scampion/nutshell-mcp/blob/main/docs/examples.md">See example prompts</a>
+        <a class="btn primary" href="#connect">Connexion en 1 minute</a>
+        <a class="btn ghost" href="https://github.com/scampion/nutshell-mcp/blob/main/docs/examples.fr.md">Voir des exemples de prompts</a>
       </div>
     </div>
   </div>
 
   <div class="wrap">
     <div class="disclaimer" role="note">
-      <strong>⚠ Demonstration server</strong>
+      <strong>⚠ Serveur de démonstration</strong>
       <p>
-        This instance is provided for demonstration and evaluation only — no guarantee of
-        availability, freshness or performance, no authentication, and it may be reset or shut
-        down at any time. <b>Do not build an operational service on it.</b> For any real use,
-        <a href="#self-host">clone the code and run your own installation</a>.
+        Cette instance est fournie uniquement pour démonstration et évaluation — aucune garantie
+        de disponibilité, de fraîcheur ni de performance, aucune authentification, et elle peut
+        être réinitialisée ou arrêtée à tout moment. <b>Ne bâtissez pas de service opérationnel dessus.</b>
+        Pour tout usage réel, <a href="#self-host">clonez le code et faites tourner votre propre installation</a>.
       </p>
     </div>
   </div>
 
   <section>
     <div class="wrap">
-      <h2>What your assistant can do with it</h2>
-      <p class="sub">Three families of sources, one table. Every value carries its quality flag and provenance.</p>
+      <h2>Ce que votre assistant peut en faire</h2>
+      <p class="sub">Trois familles de sources, un seul tableau. Chaque valeur porte son drapeau de qualité et sa provenance.</p>
       <div class="grid">
         <div class="card">
           <div class="tag">Eurostat</div>
-          <h3>Official statistics</h3>
-          <p>GDP, unemployment, population, age structure… from NUTS 0 to NUTS 2, plus the full catalogue of 10,301 datasets at their native grain.</p>
+          <h3>Statistiques officielles</h3>
+          <p>PIB, chômage, population, structure par âge… du NUTS 0 au NUTS 2, plus le catalogue complet de 10 301 datasets à leur grain natif.</p>
         </div>
         <div class="card">
           <div class="tag">OpenStreetMap</div>
-          <h3>What's on the ground</h3>
-          <p>Hospitals, schools, train stations counted per region and city, across 38 European countries.</p>
+          <h3>Ce qu'il y a sur le terrain</h3>
+          <p>Hôpitaux, écoles, gares comptés par région et par ville, dans 38 pays européens.</p>
         </div>
         <div class="card">
           <div class="tag">Copernicus</div>
-          <h3>Earth observation</h3>
-          <p>Climate and land rasters turned into regional statistics — summer surface temperature, soil sealing. Available on self-hosted instances (not materialised on this demo).</p>
+          <h3>Observation de la Terre</h3>
+          <p>Rasters climatiques et d'occupation du sol convertis en statistiques régionales — température de surface estivale, imperméabilisation des sols. Disponible sur les instances auto-hébergées (non matérialisé sur cette démo).</p>
         </div>
         <div class="card">
-          <div class="tag">Built for small models</div>
-          <h3>7 simple tools</h3>
-          <p>Narrow schemas, bounded outputs, errors that suggest the fix. Works with a 27B local model, not just frontier ones.</p>
+          <div class="tag">Pensé pour les petits modèles</div>
+          <h3>7 tools simples</h3>
+          <p>Schémas étroits, sorties bornées, erreurs qui suggèrent la correction. Fonctionne avec un modèle local de 27B, pas seulement avec les modèles de pointe.</p>
         </div>
       </div>
     </div>
@@ -197,17 +197,17 @@
 
   <section id="example">
     <div class="wrap">
-      <h2>One question, several sources</h2>
-      <p class="sub">A real prompt, and an excerpt of the answer it produced.</p>
+      <h2>Une question, plusieurs sources</h2>
+      <p class="sub">Un vrai prompt, et un extrait de la réponse obtenue.</p>
 
       <div class="prompt">
-        “I need to choose the European region where to open a geriatric clinic. Compare the
-        NUTS2 regions of France, Belgium and Luxembourg: oldest population, weakest hospital
-        supply relative to population, decent GDP per capita. Give me a justified top 5 and
-        state how reliable each source is.”
+        « Je dois choisir la région européenne où ouvrir une clinique gériatrique. Compare les
+        régions NUTS2 de la France, de la Belgique et du Luxembourg : population la plus âgée,
+        offre hospitalière la plus faible rapportée à la population, PIB par habitant correct.
+        Donne-moi un top 5 justifié et précise la fiabilité de chaque source. »
       </div>
 
-      <div class="chain" aria-label="Tool chain">
+      <div class="chain" aria-label="Enchaînement de tools">
         <code>search_indicators</code><span class="arr">→</span>
         <code>list_zones</code><span class="arr">→</span>
         <code>get_indicators</code><span class="arr">→</span>
@@ -217,47 +217,47 @@
 
       <div class="tablewrap">
         <table>
-          <thead><tr><th>#</th><th>Region (NUTS2)</th><th>Dependency 65+</th><th>Beds / 100k</th><th>GDP / inh.</th></tr></thead>
+          <thead><tr><th>#</th><th>Région (NUTS2)</th><th>Dépendance 65+</th><th>Lits / 100k</th><th>PIB / hab.</th></tr></thead>
           <tbody>
-            <tr><td>1</td><td>Brabant wallon (BE31)</td><td class="num">33.4 %</td><td class="num">225.3</td><td class="num">€69,500</td></tr>
-            <tr><td>2</td><td>Poitou-Charentes (FRI3)</td><td class="num">47.3 %</td><td class="num">492.9</td><td class="num">€34,900</td></tr>
-            <tr><td>3</td><td>Vlaams-Brabant (BE24)</td><td class="num">32.5 %</td><td class="num">377.4</td><td class="num">€57,100</td></tr>
-            <tr><td>4</td><td>Basse-Normandie (FRD1)</td><td class="num">44.3 %</td><td class="num">557.2</td><td class="num">€34,600</td></tr>
-            <tr><td>5</td><td>Corse (FRM0)</td><td class="num">43.2 %</td><td class="num">552.0</td><td class="num">€37,500</td></tr>
+            <tr><td>1</td><td>Brabant wallon (BE31)</td><td class="num">33,4 %</td><td class="num">225,3</td><td class="num">69 500 €</td></tr>
+            <tr><td>2</td><td>Poitou-Charentes (FRI3)</td><td class="num">47,3 %</td><td class="num">492,9</td><td class="num">34 900 €</td></tr>
+            <tr><td>3</td><td>Vlaams-Brabant (BE24)</td><td class="num">32,5 %</td><td class="num">377,4</td><td class="num">57 100 €</td></tr>
+            <tr><td>4</td><td>Basse-Normandie (FRD1)</td><td class="num">44,3 %</td><td class="num">557,2</td><td class="num">34 600 €</td></tr>
+            <tr><td>5</td><td>Corse (FRM0)</td><td class="num">43,2 %</td><td class="num">552,0</td><td class="num">37 500 €</td></tr>
           </tbody>
         </table>
       </div>
 
-      <p style="margin:24px 0 0">The table is the easy part. Because every value carries its quality flag, the assistant also said:</p>
+      <p style="margin:24px 0 0">Le tableau est la partie facile. Comme chaque valeur porte son drapeau de qualité, l’assistant a aussi précisé :</p>
       <ul class="checks">
-        <li>Belgian bed counts are flagged <code>d</code> (<em>definition differs</em>): the France/Belgium comparison is indicative, and ranks 1 and 3 are Belgian.</li>
-        <li>OpenStreetMap reports 0 hospitals in the French overseas departments: a completeness gap, so they were excluded rather than ranked.</li>
-        <li>Luxembourg has no bed data: “a data hole, not a bad score”.</li>
-        <li>2025 values marked <code>[p]</code> are provisional.</li>
+        <li>Les nombres de lits belges sont marqués <code>d</code> (<em>définition différente</em>) : la comparaison France/Belgique est indicative, et les rangs 1 et 3 sont belges.</li>
+        <li>OpenStreetMap ne recense aucun hôpital dans les départements d’outre-mer : un défaut de complétude, ils ont donc été exclus plutôt que classés.</li>
+        <li>Le Luxembourg n’a pas de données sur les lits : « un trou dans les données, pas une mauvaise note ».</li>
+        <li>Les valeurs 2025 marquées <code>[p]</code> sont provisoires.</li>
       </ul>
       <p style="margin:18px 0 0">
-        <a href="https://github.com/scampion/nutshell-mcp/blob/main/docs/examples.md">More example prompts and the tool chains they trigger →</a>
+        <a href="https://github.com/scampion/nutshell-mcp/blob/main/docs/examples.fr.md">Plus d’exemples de prompts et des enchaînements de tools qu’ils déclenchent →</a>
       </p>
     </div>
   </section>
 
   <section id="connect">
     <div class="wrap">
-      <h2>Connect your assistant</h2>
-      <p class="sub">Any client that speaks MCP over HTTP: Claude Desktop, Claude Code, Cursor, pi, and others.</p>
+      <h2>Connectez votre assistant</h2>
+      <p class="sub">Tout client qui parle MCP en HTTP : Claude Desktop, Claude Code, Cursor, pi, et d’autres.</p>
 
       <div class="steps">
         <div class="step"><div>
-          <h3>Add the server</h3>
-          <p><strong>Claude Code plugin</strong>: two commands, nothing else to install.</p>
+          <h3>Ajouter le serveur</h3>
+          <p><strong>Plugin Claude Code</strong> : deux commandes, rien d’autre à installer.</p>
           <div class="copy">
-            <button type="button" data-copy="plugin">Copy</button>
+            <button type="button" data-copy="plugin">Copier</button>
 <pre id="plugin">/plugin marketplace add scampion/nutshell-mcp
 /plugin install nutshell@nutshell</pre>
           </div>
-          <p style="margin-top:14px"><strong>Any other MCP client</strong>: endpoint <code>https://nutshell.scamp.fr/mcp</code> (streamable HTTP, no key).</p>
+          <p style="margin-top:14px"><strong>Tout autre client MCP</strong> : endpoint <code>https://nutshell.scamp.fr/mcp</code> (HTTP streamable, sans clé).</p>
           <div class="copy">
-            <button type="button" data-copy="cfg">Copy</button>
+            <button type="button" data-copy="cfg">Copier</button>
 <pre id="cfg">{
   "mcpServers": {
     "nutshell": {
@@ -267,15 +267,15 @@
   }
 }</pre>
           </div>
-          <p style="margin-top:10px">Claude Code without the plugin: <code>claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp</code></p>
+          <p style="margin-top:10px">Claude Code sans le plugin : <code>claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp</code></p>
         </div></div>
         <div class="step"><div>
-          <h3>Ask a question about places</h3>
-          <p>“Compare unemployment and median age in Île-de-France, Oberbayern and Lombardia.” The assistant finds the indicators, the zone codes, and returns one table.</p>
+          <h3>Posez une question sur des territoires</h3>
+          <p>« Compare le chômage et l’âge médian en Île-de-France, Oberbayern et Lombardia. » L’assistant trouve les indicateurs et les codes de zone, puis renvoie un seul tableau.</p>
         </div></div>
         <div class="step"><div>
-          <h3>Ask for the sources</h3>
-          <p>Add “state how reliable each source is”: that is what makes the assistant reason about provisional values, definition changes and coverage gaps.</p>
+          <h3>Demandez les sources</h3>
+          <p>Ajoutez « précise la fiabilité de chaque source » : c’est ce qui pousse l’assistant à raisonner sur les valeurs provisoires, les changements de définition et les lacunes de couverture.</p>
         </div></div>
       </div>
     </div>
@@ -283,28 +283,28 @@
 
   <section id="self-host">
     <div class="wrap">
-      <h2>Run your own instance</h2>
+      <h2>Faire tourner votre propre instance</h2>
       <p class="sub">
-        Recommended for any real use. The server is stateless and serves everything from local
-        disk: once synchronised, it runs fully offline, and you choose the indicators,
-        countries and refresh cadence.
+        Recommandé pour tout usage réel. Le serveur est sans état et sert tout depuis le disque
+        local : une fois synchronisé, il fonctionne entièrement hors ligne, et vous choisissez les
+        indicateurs, les pays et la cadence de rafraîchissement.
       </p>
       <div class="copy">
-        <button type="button" data-copy="install">Copy</button>
+        <button type="button" data-copy="install">Copier</button>
 <pre id="install">git clone https://github.com/scampion/nutshell-mcp.git
 cd nutshell-mcp
 uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python -e .
 
-.venv/bin/python -m nutshell_mcp.sync --source geo        # NUTS &amp; city geometries
-.venv/bin/python -m nutshell_mcp.sync --source eurostat   # registry indicators
-.venv/bin/python -m nutshell_mcp.server                   # stdio MCP server</pre>
+.venv/bin/python -m nutshell_mcp.sync --source geo        # géométries NUTS &amp; villes
+.venv/bin/python -m nutshell_mcp.sync --source eurostat   # indicateurs du registre
+.venv/bin/python -m nutshell_mcp.server                   # serveur MCP stdio</pre>
       </div>
       <p style="margin:16px 0 0">
-        Adding an indicator takes one YAML file, no code. OSM and Copernicus pipelines,
-        HTTP deployment and configuration are described in the
-        <a href="https://github.com/scampion/nutshell-mcp#readme">README</a>
-        (<a href="https://github.com/scampion/nutshell-mcp/blob/main/README.fr.md">version française</a>).
+        Ajouter un indicateur = un fichier YAML, sans code. Les pipelines OSM et Copernicus,
+        le déploiement HTTP et la configuration sont décrits dans le
+        <a href="https://github.com/scampion/nutshell-mcp/blob/main/README.fr.md">README</a>
+        (<a href="https://github.com/scampion/nutshell-mcp#readme">English version</a>).
       </p>
     </div>
   </section>
@@ -312,8 +312,8 @@ uv pip install --python .venv/bin/python -e .
 
 <footer>
   <div class="wrap">
-    <span>nutshell-mcp — <em>Europe in a nutshell</em>. Data: © Eurostat, © EuroGeographics for GISCO boundaries, © OpenStreetMap contributors (ODbL), Copernicus.</span>
-    <span><a href="https://github.com/scampion/nutshell-mcp">Source on GitHub</a> · <a href="https://github.com/scampion/nutshell-mcp/blob/main/LICENSE">AGPL-3.0</a></span>
+    <span>nutshell-mcp — <em>Europe in a nutshell</em>. Données : © Eurostat, © EuroGeographics pour les limites GISCO, © OpenStreetMap contributors (ODbL), Copernicus.</span>
+    <span><a href="https://github.com/scampion/nutshell-mcp">Code source sur GitHub</a> · <a href="https://github.com/scampion/nutshell-mcp/blob/main/LICENSE">AGPL-3.0</a></span>
   </div>
 </footer>
 
@@ -323,7 +323,7 @@ uv pip install --python .venv/bin/python -e .
       var t = document.getElementById(b.dataset.copy).textContent;
       try {
         navigator.clipboard.writeText(t).then(function () {
-          b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500);
+          b.textContent = "Copié"; setTimeout(function () { b.textContent = "Copier"; }, 1500);
         });
       } catch (e) { /* clipboard indisponible */ }
     });
