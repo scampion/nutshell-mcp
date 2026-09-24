@@ -17,6 +17,8 @@ server validates and answers from local data.
 | 3 | [When the registry stops at NUTS2](#3-when-the-registry-stops-at-nuts2) | unified layer → native grain | falling back to NUTS3, actionable errors |
 | 4 | [Tourism, beyond the registry](#4-tourism-beyond-the-registry) | native Eurostat grain | the 10,301-dataset catalogue |
 | 5 | [A new indicator in one YAML file](#5-a-new-indicator-in-one-yaml-file) | native grain → registry | the model drafts the YAML |
+| 6 | [Heatwaves and the elderly](#6-heatwaves-and-the-elderly) | unified layer, 3 batches | climate × ageing × hospitals (3 sources) |
+| 7 | [Moving with a young family](#7-moving-with-a-young-family) | one `get_indicators` call | 5 indicators from 3 sources |
 
 ---
 
@@ -261,6 +263,88 @@ The server reloads the registry on the fly: the indicator appears in
 `search_indicators` without a restart, and example 1 can then use it through
 `get_indicators` instead of the native grain. (The model also suggested saving
 the file under `indicators/`; the registry directory is `registry/`.)
+
+---
+
+## Crossing the three sources
+
+The examples above mostly combine two sources. The questions below need all
+three views of a territory at once: **socio-economic** (who lives there —
+Eurostat), **geographic** (what the environment is like — Copernicus) and
+**infrastructure** (what is available — OpenStreetMap).
+
+## 6. Heatwaves and the elderly
+
+```
+Heatwaves hit the elderly hardest. Among the NUTS3 regions of Spain and Italy,
+which ones combine the hottest summers, the oldest population and the fewest
+hospitals per 100,000 inhabitants? Give me a ranked top 10 with the figures,
+and explain how much each data source can be trusted.
+```
+
+**Real run** with Qwen3.8-27B — [full transcript](results/06-heat-ageing.md).
+The model found the four indicators (`lst_summer_mean`, `old_age_dependency`,
+`population`, `hospitals_count`), listed the 159 NUTS3 regions with
+`list_zones`, then wrote a small script through the harness's `mcpScript`
+helper that called `get_indicators` in three batches (the 100-zone limit per
+call) and ranked the regions by percentile:
+
+| # | Region | Summer temp. (°C) | 65+ / 15–64 (%) | Hospitals (OSM) | Per 100,000 |
+|---|---|---|---|---|---|
+| 1 | Asti (ITC17) | 25.1 | 45.2 | 2 | 0.97 |
+| 2 | Lecce (ITF45) | 27.8 | 42.6 | 18 | 2.35 |
+| 3 | Terni (ITI22) | 24.8 | 48.0 | 4 | 1.86 |
+| 4 | Cagliari (ITG2G) | 25.9 | 49.5 | 4 | 2.70 |
+| 5 | Trapani (ITG11) | 27.7 | 39.8 | 8 | 1.94 |
+| … | | | | | |
+| 10 | Salamanca (ES415) | 23.3 | 46.3 | 6 | 1.83 |
+
+Its reliability section ranks the sources the way an analyst would: Eurostat
+"high trust", temperature "moderate", OSM hospital counts "lowest trust, the
+weakest link" — uneven mapping, and a per-100,000 ratio that swings on a single
+missing hospital when counts are small. It concludes: *treat ranks 1–10 as a
+directional shortlist, not a precise ordering.*
+
+**What we checked.** Dependency ratios, hospital counts and populations match
+the mirror exactly. The temperatures do not: the model labelled them "2024" but
+its script read the third row of each zone, which is **2023** (Asti 25.1 °C in
+2023, 23.8 °C in 2024). The ranking is therefore a 2023 heat ranking. The model
+also describes the temperature as satellite land-surface temperature; it is
+ERA5-Land reanalysis skin temperature, flagged `[sampled]` on this demo server
+(estimate from the keyless ARCO provider).
+
+## 7. Moving with a young family
+
+```
+My family with two young children wants to move to Germany or Austria. Compare
+their NUTS2 regions: we want mild summers, low unemployment, and as many
+schools and train stations as possible relative to population. Suggest the 5
+best regions with a table of figures, and tell me what the data cannot tell us.
+```
+
+**Real run** with Qwen3.8-27B — [full transcript](results/07-family-relocation.md).
+Four `search_indicators`, two `list_zones`, then **a single `get_indicators`
+call** with 5 indicators from 3 sources over 45 regions — exactly the limits
+of one call:
+
+```
+get_indicators(["lst_summer_mean", "unemployment_rate", "schools_count",
+                "train_stations_count", "population"], [DE11 … AT34])
+```
+
+| # | Region | Summer (°C) | Unemployment | Schools / 1,000 inh. | Stations / 1,000 inh. |
+|---|---|---|---|---|---|
+| 1 | Oberösterreich (AT31) | 19.7 | 3.8 % | 0.640 | 0.091 |
+| 2 | Steiermark (AT22) | 18.4 | 4.4 % | 0.608 | 0.095 |
+| 3 | Lüneburg (DE93) | 18.7 | 2.7 % | 0.488 | 0.078 |
+| 4 | Oberfranken (DE24) | 18.4 | 2.7 % | 0.521 | 0.059 |
+| 5 | Tübingen (DE14) | 18.4 | 2.8 % | 0.531 | 0.056 |
+
+All figures in the table match the mirror. The model made "mild" explicit
+(17.5–20 °C), offered the other reading (*cool* summers put Tirol first) and
+listed what the data cannot say: daycare places, cost of housing, train
+frequency rather than station counts, heatwave frequency rather than a summer
+mean, and the per-capita bias that favours small, sparsely populated regions.
 
 ---
 

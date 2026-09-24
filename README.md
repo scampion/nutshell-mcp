@@ -23,7 +23,8 @@ Ask a question that no single source answers:
 The model chains `search_indicators` → `list_zones` → `get_indicators` (and drops
 to the native Eurostat grain when it needs more), then reasons on the quality
 flags: provisional values, differing definitions, incomplete OSM coverage, data
-holes. **[More example prompts, with the expected tool chains → `docs/examples.md`](docs/examples.md)**
+holes. Other real runs cross all three sources — heatwaves × ageing × hospitals, or climate × jobs × schools and
+rail for a family move. **[Example prompts and full transcripts → `docs/examples.md`](docs/examples.md)**
 
 Reference document: `architecture-spec-mcp-territorial.md`.
 Deviations and implementation choices: `DECISIONS.md`.

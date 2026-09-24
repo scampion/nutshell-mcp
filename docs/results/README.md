@@ -12,6 +12,8 @@ left out.
 | [04-tourism.md](04-tourism.md) | Qwen3.8-27B (OpenRouter) | after the `list_codes` fix |
 | [04-tourism-before-fix.md](04-tourism-before-fix.md) | Qwen3.8-27B (OpenRouter) | misses Canarias — see example 4 |
 | [05-new-indicator-yaml.md](05-new-indicator-yaml.md) | Qwen3.8-27B (OpenRouter) | |
+| [06-heat-ageing.md](06-heat-ageing.md) | Qwen3.8-27B (OpenRouter) | temperatures read from 2023, labelled 2024 — see example 6 |
+| [07-family-relocation.md](07-family-relocation.md) | Qwen3.8-27B (OpenRouter) | |
 
 ## How they were produced
 

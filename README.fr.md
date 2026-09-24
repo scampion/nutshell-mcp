@@ -24,7 +24,8 @@ Posez une question qu'aucune source ne traite seule :
 Le modèle enchaîne `search_indicators` → `list_zones` → `get_indicators` (et
 descend au grain natif Eurostat au besoin), puis raisonne sur les flags qualité :
 valeurs provisoires, définitions différentes, couverture OSM incomplète, trous de
-données. **[Plus d'exemples de prompts, avec les enchaînements attendus → `docs/examples.fr.md`](docs/examples.fr.md)**
+données. D'autres vrais runs croisent les trois sources — canicules × vieillissement × hôpitaux, ou climat × emploi ×
+écoles et gares pour un déménagement. **[Exemples de prompts et transcripts complets → `docs/examples.fr.md`](docs/examples.fr.md)**
 
 Document de référence : `architecture-spec-mcp-territorial.md`.
 Écarts et choix d'implémentation : `DECISIONS.md`.
