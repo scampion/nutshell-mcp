@@ -104,6 +104,7 @@
 
   .cases { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
   .case { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+  .case:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .case h3 { margin: 0 0 4px; font-size: 1.1rem; }
   .case .srcs { font-size: 0.8em; color: var(--gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px; }
   .case blockquote { margin: 0 0 14px; padding: 0 0 0 12px; border-left: 3px solid var(--accent); color: var(--muted); font-size: 0.95em; }
@@ -262,7 +263,7 @@
       <p class="sub">
         Certaines questions exigent trois regards à la fois sur un territoire : <strong>qui y vit</strong>
         (Eurostat), <strong>quel est le milieu</strong> (Copernicus) et
-        <strong>de quoi dispose-t-on</strong> (OpenStreetMap). Deux vrais runs avec Qwen3.8-27B,
+        <strong>de quoi dispose-t-on</strong> (OpenStreetMap). Trois vrais runs avec Qwen3.8-27B,
         chiffres vérifiés contre les données du serveur.
       </p>
       <div class="cases">
@@ -297,6 +298,22 @@
             </table>
           </div>
           <p class="note">Un seul appel, 5 indicateurs issus de 3 sources sur 45 régions. L'assistant a aussi listé ce que les données ne disent pas : places en crèche, coût du logement, fréquence des trains.</p>
+        </div>
+        <div class="case">
+          <h3>Tourisme d'été, chaleur et train</h3>
+          <div class="srcs">Eurostat × Copernicus × OSM · NUTS2</div>
+          <blockquote>« Parmi les régions d'Espagne, d'Italie, de Grèce et de Croatie, lesquelles accueillent le plus de nuitées, ont les étés les plus chauds, et sont-elles bien desservies par le train ? »</blockquote>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>#</th><th>Région</th><th>Nuitées été</th><th>Été</th><th>Gares / 100 000</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Jadranska Hrvatska</td><td class="num">63,0 M</td><td class="num">23,6 °C</td><td class="num">3,8</td></tr>
+                <tr><td>2</td><td>Cataluña</td><td class="num">40,3 M</td><td class="num">23,9 °C</td><td class="num">5,3</td></tr>
+                <tr><td>3</td><td>Illes Balears</td><td class="num">37,7 M</td><td class="num">26,9 °C</td><td class="num">2,9</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note">Nuitées de juin à août, tirées de la série mensuelle Eurostat. Les régions les plus chaudes ne sont pas les plus visitées, et les destinations les plus fréquentées sont parmi les moins desservies par le train.</p>
         </div>
       </div>
       <p style="margin:20px 0 0">

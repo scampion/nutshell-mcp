@@ -104,6 +104,7 @@
 
   .cases { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
   .case { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+  .case:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .case h3 { margin: 0 0 4px; font-size: 1.1rem; }
   .case .srcs { font-size: 0.8em; color: var(--gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px; }
   .case blockquote { margin: 0 0 14px; padding: 0 0 0 12px; border-left: 3px solid var(--accent); color: var(--muted); font-size: 0.95em; }
@@ -262,7 +263,7 @@
       <p class="sub">
         Some questions need three views of a territory at once: <strong>who lives there</strong>
         (Eurostat), <strong>what the environment is like</strong> (Copernicus) and
-        <strong>what is available</strong> (OpenStreetMap). Two real runs with Qwen3.8-27B, figures
+        <strong>what is available</strong> (OpenStreetMap). Three real runs with Qwen3.8-27B, figures
         checked against the server's data.
       </p>
       <div class="cases">
@@ -297,6 +298,22 @@
             </table>
           </div>
           <p class="note">One call, 5 indicators from 3 sources over 45 regions. The assistant also listed what the data cannot say: daycare places, housing costs, train frequency.</p>
+        </div>
+        <div class="case">
+          <h3>Summer tourism, heat and rail</h3>
+          <div class="srcs">Eurostat × Copernicus × OSM · NUTS2</div>
+          <blockquote>“Among the regions of Spain, Italy, Greece and Croatia, which ones receive the most tourist nights, have the hottest summers, and how well are they served by rail?”</blockquote>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>#</th><th>Region</th><th>Summer nights</th><th>Summer</th><th>Stations / 100k</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Jadranska Hrvatska</td><td class="num">63.0 M</td><td class="num">23.6 °C</td><td class="num">3.8</td></tr>
+                <tr><td>2</td><td>Cataluña</td><td class="num">40.3 M</td><td class="num">23.9 °C</td><td class="num">5.3</td></tr>
+                <tr><td>3</td><td>Illes Balears</td><td class="num">37.7 M</td><td class="num">26.9 °C</td><td class="num">2.9</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note">June–August nights from the monthly Eurostat series. The hottest regions are not the most visited, and the busiest destinations are among the least served by rail.</p>
         </div>
       </div>
       <p style="margin:20px 0 0">
