@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'none'; connect-src 'self' https://nutshell.arcamens.ai https://openrouter.ai https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://api.mistral.ai http://localhost:* http://127.0.0.1:*">
 <title>nutshell-mcp — Europe in a nutshell</title>
 <meta name="description" content="Un serveur MCP qui donne à votre assistant IA les données territoriales européennes — Eurostat, Copernicus et OpenStreetMap — sur un grain unique : zone × indicateur × période.">
 <link rel="alternate" hreflang="en" href="https://nutshell.arcamens.ai/">
@@ -157,6 +158,55 @@
 
   footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 0.9em; }
   footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+
+  .pg { display: grid; grid-template-columns: minmax(0, 290px) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 820px) { .pg { grid-template-columns: minmax(0, 1fr); } }
+  .pg-cfg { display: grid; gap: 12px; }
+  .pg label { display: grid; gap: 4px; font-size: 0.85em; font-weight: 600; color: var(--muted); }
+  .pg input, .pg select, .pg textarea {
+    font: inherit; font-size: 0.95rem; font-weight: 400; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0;
+  }
+  .pg input:focus, .pg select:focus, .pg textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .pg-keyhelp { margin: -4px 0 0; font-size: 0.85em; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .pg-keyhelp button, .pg-ask button.link {
+    font: inherit; cursor: pointer; background: none; border: 1px solid var(--accent); color: var(--accent);
+    border-radius: 6px; padding: 3px 9px; font-weight: 600;
+  }
+  .pg-adv summary { cursor: pointer; font-size: 0.85em; color: var(--muted); }
+  .pg-adv[open] { display: grid; gap: 10px; }
+  .pg-privacy { margin: 0; font-size: 0.82em; color: var(--muted); }
+  .pg-chat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+  .pg-log { max-height: 560px; overflow-y: auto; display: grid; gap: 10px; }
+  .pg-log:empty { display: none; }
+  .pg-msg { min-width: 0; font-size: 0.95em; }
+  .pg-msg p { margin: 0 0 8px; }
+  .pg-msg h4 { margin: 10px 0 6px; font-size: 1rem; }
+  .pg-msg ul, .pg-msg ol { margin: 0 0 8px; padding-left: 22px; }
+  .pg-msg .tablewrap { margin: 0 0 10px; }
+  .pg-msg th, .pg-msg td { padding: 6px 9px; }
+  .pg-user { justify-self: end; max-width: 85%; background: var(--accent); color: var(--accent-ink);
+             border-radius: 10px 10px 2px 10px; padding: 8px 12px; white-space: pre-wrap; }
+  .pg-wait { color: var(--muted); font-style: italic; }
+  .pg-err { color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 8px; padding: 8px 12px; }
+  .pg-tool { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 6px 10px; font-size: 0.85em; }
+  .pg-tool summary { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pg-tool .pg-args { color: var(--muted); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+  .pg-tool pre { margin-top: 8px; max-height: 320px; overflow: auto; font-size: 0.8em; }
+  .pg-tool.pg-bad summary code { color: var(--warn-ink); }
+  .pg-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+  .pg-log:not(:empty) + .pg-examples { margin-top: 12px; }
+  .pg-examples button {
+    font: inherit; font-size: 0.85em; cursor: pointer; text-align: left; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
+  }
+  .pg-examples button:hover { border-color: var(--accent); }
+  .pg-ask { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .pg-ask textarea { resize: vertical; grid-row: span 2; }
+  .pg-ask .btn { cursor: pointer; font: inherit; font-weight: 600; }
+  .pg-ask .btn:disabled { opacity: 0.55; cursor: wait; }
+  .pg-note { margin: 10px 0 0; font-size: 0.82em; color: var(--muted); }
+  .linkish { font: inherit; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -166,6 +216,7 @@
     <a class="brand" href="#"><img src="../logo.png" width="28" height="28" alt="">nutshell<span>·</span>mcp</a>
     <nav>
       <a class="opt" href="#example">Exemple</a>
+      <a class="opt" href="#playground">Essayer</a>
       <a class="opt" href="#connect">Connexion</a>
       <a class="opt" href="#self-host">Auto-hébergement</a>
       <a class="opt" href="#contact">Contact</a>
@@ -338,6 +389,44 @@
     </div>
   </section>
 
+  <section id="playground">
+    <div class="wrap">
+      <h2>Essayer dans le navigateur</h2>
+      <p class="sub">Apportez votre modèle : choisissez un fournisseur, collez sa clé d'API et posez votre
+        question. La page appelle votre fournisseur et le serveur de démo directement depuis cet onglet.</p>
+      <div class="pg">
+        <form class="pg-cfg" id="pg-cfg" autocomplete="off">
+          <label>Fournisseur <select id="pg-provider"></select></label>
+          <label>Modèle <input id="pg-model" list="pg-models" spellcheck="false"><datalist id="pg-models"></datalist></label>
+          <label>Clé d'API <input id="pg-key" type="password" spellcheck="false"></label>
+          <p class="pg-keyhelp"><a id="pg-keylink" target="_blank" rel="noopener noreferrer">Obtenir une clé</a>
+            <button type="button" id="pg-oauth">Se connecter avec OpenRouter</button></p>
+          <details class="pg-adv"><summary>Avancé</summary>
+            <label>Endpoint du modèle <input id="pg-base" spellcheck="false"></label>
+            <label>Endpoint MCP <input id="pg-mcp" spellcheck="false"></label>
+          </details>
+          <p class="pg-privacy">Votre clé reste dans cet onglet (session storage) et n'est envoyée qu'au
+            fournisseur choisi, jamais à nutshell. OpenRouter permet aussi d'essayer un modèle ouvert de 27B.</p>
+        </form>
+        <div class="pg-chat">
+          <div class="pg-log" id="pg-log" aria-live="polite"></div>
+          <div class="pg-examples">
+            <button type="button" data-q="Compare le chômage et l'âge médian en Île-de-France, en Haute-Bavière et en Lombardie. Indique la fiabilité de chaque source.">Chômage × âge médian</button>
+            <button type="button" data-q="Quelles sont les 5 régions NUTS2 d'Espagne avec le plus de nuitées touristiques en 2023, et quelle est la chaleur de leurs nuits d'été ?">Tourisme × chaleur en Espagne</button>
+            <button type="button" data-q="Combien d'hôpitaux pour 100 000 habitants dans les régions NUTS3 de Belgique ?">Hôpitaux en Belgique</button>
+          </div>
+          <form id="pg-form" class="pg-ask">
+            <textarea id="pg-q" rows="2" placeholder="Posez une question sur une région européenne…"></textarea>
+            <button class="btn primary" id="pg-send">Demander</button>
+            <button type="button" class="btn ghost" id="pg-stop" hidden>Arrêter</button>
+          </form>
+          <p class="pg-note">Les appels de tools comptent dans le quota de démo (100 par jour et par IP) ; les tokens sont facturés par votre fournisseur.
+            <button type="button" id="pg-reset" class="linkish">Nouvelle conversation</button></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="connect">
     <div class="wrap">
       <h2>Connectez votre assistant</h2>
@@ -430,17 +519,6 @@ uv pip install --python .venv/bin/python -e .
   </div>
 </footer>
 
-<script>
-  document.querySelectorAll("button[data-copy]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var t = document.getElementById(b.dataset.copy).textContent;
-      try {
-        navigator.clipboard.writeText(t).then(function () {
-          b.textContent = "Copié"; setTimeout(function () { b.textContent = "Copier"; }, 1500);
-        });
-      } catch (e) { /* clipboard indisponible */ }
-    });
-  });
-</script>
+<script src="../app.js" defer></script>
 </body>
 </html>

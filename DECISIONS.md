@@ -277,6 +277,41 @@ confiance, sinon tous les clients ont l'IP du proxy.
 
 ---
 
+## ADR-L1-17. Playground navigateur : le visiteur apporte son modèle
+
+**Contexte.** La landing page montre des exemples figés. Pour essayer sans
+installer de client MCP, le visiteur doit pouvoir poser une question depuis la
+page. La spec ne prévoit pas de client web, et le serveur de démo ne doit pas
+payer l'inférence.
+
+**Décision.** `site/app.js`, sans dépendance ni build : le navigateur est lui-même
+le client MCP (streamable HTTP : `initialize`, `tools/list`, `tools/call`, réponses
+JSON ou SSE) et mène la boucle de tool calling avec le fournisseur choisi par le
+visiteur et **sa** clé. Deux formats couvrent les principaux fournisseurs :
+Messages API d'Anthropic (en-tête `anthropic-dangerous-direct-browser-access`) et
+chat completions compatible OpenAI (OpenAI, Google Gemini, Mistral, OpenRouter,
+serveur local Ollama/LM Studio). OpenRouter est proposé par défaut : il accepte les
+appels navigateur, fournit une clé par OAuth PKCE sans copier-coller, et donne
+accès à des modèles ouverts de ~27B, la cible du projet (§8.5). Appels HTTP bruts
+plutôt que SDK : une page statique multi-fournisseurs sans build.
+
+La clé reste en `sessionStorage` (onglet courant) et ne part qu'au fournisseur.
+Une CSP stricte (`script-src 'self'`, `connect-src` limité aux fournisseurs, au
+serveur et à `localhost`) limite l'exfiltration en cas d'injection ; les réponses
+du modèle sont échappées avant un rendu Markdown minimal.
+
+Les appels MCP partent de l'IP du visiteur : le quota anonyme par IP
+(ADR-L1-16) s'applique tel quel. En production, la page et `/mcp` partagent
+l'origine `nutshell.arcamens.ai`, sans CORS. Pour les autres cas (dev local,
+instance auto-hébergée), `NUTSHELL_CORS_ORIGINS` active un middleware CORS qui
+expose `Mcp-Session-Id`, et ajoute ces origines à la protection DNS rebinding.
+
+**Conséquence.** Un fournisseur qui refuse le CORS échoue avec un message
+renvoyant vers OpenRouter. La qualité de la démo dépend du modèle choisi ; c'est
+voulu, puisqu'elle montre aussi le comportement d'un petit modèle.
+
+---
+
 ## Lot 2 — OSM
 
 ### ADR-L2-1. Périmètre configuré par variable d'environnement, défaut Luxembourg seul
