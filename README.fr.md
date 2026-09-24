@@ -27,6 +27,29 @@ données. **[Plus d'exemples de prompts, avec les enchaînements attendus → `d
 Document de référence : `architecture-spec-mcp-territorial.md`.
 Écarts et choix d'implémentation : `DECISIONS.md`.
 
+## Démarrage rapide : serveur hébergé
+
+Aucune installation : un serveur de démonstration public tourne sur
+`https://nutshell.scamp.fr/mcp` (HTTP streamable, sans clé ; disponibilité au mieux).
+
+**Plugin Claude Code (marketplace)**
+
+```
+/plugin marketplace add scampion/nutshell-mcp
+/plugin install nutshell@nutshell
+```
+
+**Claude Code, sans le plugin**
+
+```bash
+claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp
+```
+
+**Autre client MCP** (connecteur personnalisé Claude Desktop, Cursor, …) : ajouter
+un serveur distant avec l'URL ci-dessus.
+
+Pour héberger votre propre instance (offline, privée), voir [Installation](#installation).
+
 ## Architecture
 
 ```

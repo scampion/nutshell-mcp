@@ -1,0 +1,16 @@
+{
+  "name": "nutshell",
+  "owner": { "name": "Sébastien Campion", "email": "sebastien.campion@foss4.eu" },
+  "metadata": { "description": "Europe in a nutshell : données territoriales européennes (Eurostat, Copernicus, OSM) pour Claude" },
+  "plugins": [
+    {
+      "name": "nutshell",
+      "source": "./plugins/nutshell",
+      "description": "Serveur MCP distant nutshell.scamp.fr : indicateurs par région NUTS (population, chômage, PIB, artificialisation…) et 10 000 datasets Eurostat.",
+      "version": "0.2.0",
+      "license": "AGPL-3.0-or-later",
+      "homepage": "https://nutshell.scamp.fr",
+      "keywords": ["mcp", "eurostat", "nuts", "copernicus", "openstreetmap", "europe"]
+    }
+  ]
+}

@@ -29,6 +29,29 @@ Deviations and implementation choices: `DECISIONS.md`.
 > Tool outputs and error messages are in French (project convention); the
 > examples below are shown as the server returns them.
 
+## Quick start: use the hosted server
+
+No install needed: a public demo server runs at `https://nutshell.scamp.fr/mcp`
+(streamable HTTP, no key; best-effort availability).
+
+**Claude Code plugin (marketplace)**
+
+```
+/plugin marketplace add scampion/nutshell-mcp
+/plugin install nutshell@nutshell
+```
+
+**Claude Code, without the plugin**
+
+```bash
+claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp
+```
+
+**Any other MCP client** (Claude Desktop custom connector, Cursor, …): add a
+remote server with the URL above.
+
+To run your own copy (offline, private), see [Installation](#installation).
+
 ## Architecture
 
 ```
