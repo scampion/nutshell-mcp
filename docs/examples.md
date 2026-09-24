@@ -65,12 +65,15 @@ provenance layer let the model say about it:
 - Luxembourg returned no bed data; the model reported *a data hole, not a bad
   score* and ranked it on demography alone.
 - Values marked `[p]` (provisional) were called out as such for 2025.
-- It noticed that the French data was on the pre-2016 regional geography
-  (Poitou-Charentes rather than Nouvelle-Aquitaine) and told the user to rerun
-  on NUTS 2021 before any decision.
-
 The final recommendation is hedged accordingly — which is the point: a model
 that can see the quality flags behaves like an analyst, not like a search box.
+
+**What the model got wrong.** It warned that the French data was on the
+"pre-2016 regional geography" (Poitou-Charentes rather than Nouvelle-Aquitaine)
+and told the user to rerun on NUTS 2021. That is a misreading: in NUTS 2021 and
+2024, the current French regions are the NUTS1 level (`FRI` Nouvelle-Aquitaine)
+while NUTS2 keeps the former regions (`FRI3` Poitou-Charentes). The data was
+current; the NUTS2 level simply does not match today's administrative regions.
 
 ---
 

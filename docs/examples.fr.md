@@ -67,13 +67,19 @@ couche de provenance a permis au modèle d'en dire :
 - Le Luxembourg ne renvoyait aucune donnée de lits ; le modèle a signalé *un
   trou de données, pas un mauvais score*, et l'a classé sur la seule démographie.
 - Les valeurs `[p]` (provisoires) de 2025 ont été signalées comme telles.
-- Il a remarqué que les données françaises portaient sur la géographie régionale
-  d'avant 2016 (Poitou-Charentes plutôt que Nouvelle-Aquitaine) et recommandé de
-  refaire l'analyse en NUTS 2021 avant toute décision.
 
 La recommandation finale est nuancée en conséquence — c'est tout l'intérêt : un
 modèle qui voit les flags qualité se comporte en analyste, pas en moteur de
 recherche.
+
+**Ce que le modèle a mal lu.** Il a averti que les données françaises portaient
+sur la « géographie régionale d'avant 2016 » (Poitou-Charentes plutôt que
+Nouvelle-Aquitaine) et recommandé de refaire l'analyse en NUTS 2021. C'est une
+erreur de lecture : en NUTS 2021 comme en 2024, les régions françaises actuelles
+forment le niveau NUTS1 (`FRI` Nouvelle-Aquitaine), tandis que le niveau NUTS2
+conserve les anciennes régions (`FRI3` Poitou-Charentes). Les données étaient à
+jour ; c'est le niveau NUTS2 qui ne correspond pas aux régions administratives
+d'aujourd'hui.
 
 ---
 
