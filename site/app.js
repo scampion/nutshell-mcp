@@ -303,7 +303,7 @@
       mcpIn = $("pg-mcp"), log = $("pg-log"), q = $("pg-q"), send = $("pg-send"),
       stopBtn = $("pg-stop"), models = $("pg-models"), keyLink = $("pg-keylink"), oauth = $("pg-oauth");
 
-  var DEFAULT_MCP = location.hostname === "nutshell.arcamens.ai"
+  var DEFAULT_MCP = /^nutshell\./.test(location.hostname)
     ? location.origin + "/mcp" : "https://nutshell.arcamens.ai/mcp";
   var mcp = null, convo = [], convoKind = "", abort = null;
 
