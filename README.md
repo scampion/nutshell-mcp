@@ -97,6 +97,10 @@ uv pip install --python .venv/bin/python -e ".[dev]"
 MCP_TRANSPORT=http .venv/bin/python -m nutshell_mcp.server   # streamable HTTP
 ```
 
+In HTTP mode, `NUTSHELL_CORS_ORIGINS` (comma-separated origins) lets web pages on
+other origins call `/mcp` from a browser, like the landing page playground when it is
+not served from the same domain as the server.
+
 Optional extras, needed only by the matching ingestion pipelines:
 `.[osm]`, `.[copernicus]`. The server starts without them.
 

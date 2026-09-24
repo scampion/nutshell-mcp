@@ -604,6 +604,12 @@ async def query_data(
     return "\n".join(out)
 
 
+def _cors_origins() -> list[str]:
+    """Origines web autorisées à appeler /mcp depuis un navigateur (``NUTSHELL_CORS_ORIGINS``)."""
+    raw = os.environ.get("NUTSHELL_CORS_ORIGINS", "")
+    return [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
+
+
 def _run_http() -> None:
     """Transport HTTP ; hôte, port et Host autorisés (derrière un proxy) par variables d'env."""
     opts: dict = {
@@ -612,15 +618,19 @@ def _run_http() -> None:
     }
     raw_hosts = os.environ.get("NUTSHELL_ALLOWED_HOSTS", "")
     hosts = [h.strip() for h in raw_hosts.split(",") if h.strip()]
-    if hosts:
+    cors = _cors_origins()
+    if hosts or (cors and opts["host"] in ("127.0.0.1", "localhost", "::1")):
         from mcp.server.transport_security import TransportSecuritySettings
 
+        # mêmes défauts locaux que le SDK, étendus aux hôtes publics et aux origines CORS
         opts["transport_security"] = TransportSecuritySettings(
-            allowed_hosts=[*hosts, "127.0.0.1:*", "localhost:*"],
-            allowed_origins=[f"https://{h}" for h in hosts],
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=[*hosts, "127.0.0.1:*", "localhost:*", "[::1]:*"],
+            allowed_origins=[*(f"https://{h}" for h in hosts), *cors,
+                             "http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"],
         )
-    if quota.enabled():
-        _run_http_with_quota(opts)
+    if quota.enabled() or cors:
+        _run_http_app(opts, cors)
         return
     try:
         mcp.run(transport="streamable-http", **opts)
@@ -630,14 +640,28 @@ def _run_http() -> None:
         mcp.run(transport="streamable-http")
 
 
-def _run_http_with_quota(opts: dict) -> None:
-    """Sert l'app streamable HTTP derrière le middleware d'identité client (SDK 2.x)."""
+def _wrap_cors(app, origins: list[str]):
+    """Répond aux pré-requêtes CORS et expose l'en-tête de session MCP au navigateur."""
+    from starlette.middleware.cors import CORSMiddleware
+
+    return CORSMiddleware(
+        app, allow_origins=origins, allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["content-type", "accept", "authorization", "mcp-session-id",
+                       "mcp-protocol-version", "last-event-id", "x-nutshell-key"],
+        expose_headers=["mcp-session-id"], max_age=600)
+
+
+def _run_http_app(opts: dict, cors: list[str]) -> None:
+    """Sert l'app streamable HTTP avec middlewares : identité client (quota), CORS (SDK 2.x)."""
     import uvicorn
 
     app = mcp.streamable_http_app(
         transport_security=opts.get("transport_security"), host=opts["host"])
-    uvicorn.run(quota.ClientIdentity(app), host=opts["host"], port=opts["port"],
-                proxy_headers=False)
+    if quota.enabled():
+        app = quota.ClientIdentity(app)
+    if cors:
+        app = _wrap_cors(app, cors)
+    uvicorn.run(app, host=opts["host"], port=opts["port"], proxy_headers=False)
 
 
 def main() -> None:
