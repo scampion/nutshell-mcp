@@ -1,48 +1,65 @@
 # nutshell-mcp — *Europe in a nutshell*
 
-Serveur MCP de données territoriales européennes — Eurostat, Copernicus et
-OpenStreetMap ramenés à un grain unique **zone × indicateur × période**, servi
-entièrement hors ligne.
+[🇫🇷 Français](README.fr.md) · 🇬🇧 English
 
-Conçu pour un modèle local de taille moyenne (référence : Qwen3.8-27B) : 7 tools,
-schémas étroits, validation côté serveur, sorties bornées et auto-descriptives.
-Le modèle ne construit jamais de requête source — ni URL SDMX, ni Overpass QL,
-ni requête CDS.
+MCP server for European territorial data — Eurostat, Copernicus and
+OpenStreetMap brought to a single grain, **zone × indicator × period**, and
+served entirely offline.
 
-Document de référence : `architecture-spec-mcp-territorial.md`.
-Écarts et choix d'implémentation : `DECISIONS.md`.
+Designed for a mid-size local model (reference: Qwen3.8-27B): 7 tools, narrow
+schemas, server-side validation, bounded and self-describing outputs. The model
+never builds a source query — no SDMX URL, no Overpass QL, no CDS request.
+
+## See it in action
+
+Ask a question that no single source answers:
+
+> *Compare the NUTS2 regions of France, Belgium and Luxembourg: oldest
+> population, weakest hospital supply, decent GDP per capita. Give me a
+> justified top 5 and state how reliable each source is.*
+
+The model chains `search_indicators` → `list_zones` → `get_indicators` (and drops
+to the native Eurostat grain when it needs more), then reasons on the quality
+flags: provisional values, differing definitions, incomplete OSM coverage, data
+holes. **[More example prompts, with the expected tool chains → `docs/examples.md`](docs/examples.md)**
+
+Reference document: `architecture-spec-mcp-territorial.md`.
+Deviations and implementation choices: `DECISIONS.md`.
+
+> Tool outputs and error messages are in French (project convention); the
+> examples below are shown as the server returns them.
 
 ## Architecture
 
 ```
-   INGESTION (en ligne, planifiée)          python -m nutshell_mcp.sync
+   INGESTION (online, scheduled)            python -m nutshell_mcp.sync
    ┌───────────────────────────────────────────────────────────────────┐
-   │ GISCO      → geo.py          géométries NUTS/villes + table geo   │
-   │ Eurostat   → mirror.py       bulk TSV.gz → Parquet natif          │
-   │              project_eurostat.py  → projection au grain canonique │
-   │ OpenStreetMap → ingest_osm.py     extraits Geofabrik → POI       │
-   │ Copernicus    → ingest_cds.py     rasters → statistiques zonales  │
+   │ GISCO      → geo.py          NUTS/city geometries + geo table     │
+   │ Eurostat   → mirror.py       bulk TSV.gz → native Parquet         │
+   │              project_eurostat.py  → projection to canonical grain │
+   │ OpenStreetMap → ingest_osm.py     Geofabrik extracts → POIs       │
+   │ Copernicus    → ingest_cds.py     rasters → zonal statistics      │
    └───────────────────────────────┬───────────────────────────────────┘
                                    ▼
-   STOCKAGE (local, rsyncable)
+   STORAGE (local, rsync-able)
    ┌───────────────────────────────────────────────────────────────────┐
-   │ mirror/eurostat/{dataset}.parquet          grain natif            │
-   │ mirror/indicators/indicator={id}/…         grain canonique        │
-   │ mirror/geo/*.geojson                       géométries GISCO       │
-   │ eurostat.db                catalogue FTS5, DSD, registre, sync    │
-   │ registry/*.yaml            définitions d'indicateurs (versionné)  │
+   │ mirror/eurostat/{dataset}.parquet          native grain           │
+   │ mirror/indicators/indicator={id}/…         canonical grain        │
+   │ mirror/geo/*.geojson                       GISCO geometries       │
+   │ eurostat.db                FTS5 catalogue, DSD, registry, sync    │
+   │ registry/*.yaml            indicator definitions (versioned)      │
    └───────────────────────────────┬───────────────────────────────────┘
                                    ▼
-   SERVICE (offline)                        python -m nutshell_mcp.server
+   SERVING (offline)                        python -m nutshell_mcp.server
    ┌───────────────────────────────────────────────────────────────────┐
-   │ couche unifiée : search_indicators, list_zones, get_indicators    │
-   │ grain natif    : search_datasets, get_structure, list_codes,      │
-   │                  query_data                                       │
+   │ unified layer : search_indicators, list_zones, get_indicators     │
+   │ native grain  : search_datasets, get_structure, list_codes,       │
+   │                 query_data                                        │
    └───────────────────────────────────────────────────────────────────┘
 ```
 
-Ingestion et service sont découplés : le serveur ne lit que le disque. Une panne
-des APIs sources n'affecte jamais une conversation en cours.
+Ingestion and serving are decoupled: the server only reads from disk. An outage
+of the source APIs never affects a conversation in progress.
 
 ## Installation
 
@@ -54,10 +71,10 @@ uv pip install --python .venv/bin/python -e ".[dev]"
 MCP_TRANSPORT=http .venv/bin/python -m nutshell_mcp.server   # streamable HTTP
 ```
 
-Extras optionnels, nécessaires aux seuls pipelines d'ingestion correspondants :
-`.[osm]`, `.[copernicus]`. Le serveur démarre sans eux.
+Optional extras, needed only by the matching ingestion pipelines:
+`.[osm]`, `.[copernicus]`. The server starts without them.
 
-Config client MCP (stdio) :
+MCP client config (stdio):
 
 ```json
 {
@@ -65,29 +82,29 @@ Config client MCP (stdio) :
     "nutshell": {
       "command": "python",
       "args": ["-m", "nutshell_mcp.server"],
-      "cwd": "/chemin/vers/nutshell-mcp",
+      "cwd": "/path/to/nutshell-mcp",
       "env": { "NUTSHELL_OFFLINE": "1" }
     }
   }
 }
 ```
 
-## Les 7 tools
+## The 7 tools
 
-### Couche unifiée — croiser les sources
+### Unified layer — crossing sources
 
-| tool | rôle | sortie |
+| tool | purpose | output |
 |---|---|---|
-| `search_indicators(query, source="", limit=10)` | trouver un indicateur dans le registre | `id \| label \| unité \| freq \| niveaux geo \| source` |
-| `list_zones(level, parent="", contains="")` | parcourir le référentiel géographique | `geo_code \| name \| level \| parent` |
-| `get_indicators(indicators, zones, time_from="", time_to="")` | valeurs, **une colonne par indicateur** | tableau pivoté + ligne de provenance |
+| `search_indicators(query, source="", limit=10)` | find an indicator in the registry | `id \| label \| unit \| freq \| geo levels \| source` |
+| `list_zones(level, parent="", contains="")` | browse the geographic reference | `geo_code \| name \| level \| parent` |
+| `get_indicators(indicators, zones, time_from="", time_to="")` | values, **one column per indicator** | pivoted table + provenance line |
 
-### Grain natif Eurostat — toutes dimensions
+### Native Eurostat grain — all dimensions
 
-`search_datasets` → `get_structure` → `list_codes` → `query_data`, sur les
-10 301 datasets du catalogue, y compris ceux qu'aucun indicateur ne projette.
+`search_datasets` → `get_structure` → `list_codes` → `query_data`, over the
+10,301 datasets of the catalogue, including those no indicator projects.
 
-### Séquence type côté agent
+### Typical agent sequence
 
 ```
 1. search_indicators("chômage PIB population")
@@ -106,17 +123,16 @@ FRK2     | 2024 | 43400 [p]      | 6.8 [bd]          | 41.4 [p]
 [Source : eurostat (30.06.2026)]
 ```
 
-Garde-fous : 5 indicateurs et 100 zones maximum par appel ; sans filtre
-temporel, les 3 dernières périodes ; 400 lignes maximum, toute troncature
-indiquant l'action corrective. Les crochets après une valeur portent le flag
-qualité (`p` provisoire, `d` définition différente, `recoded`,
-`osm_completeness_unknown`…). Les indicateurs `SNAPSHOT` (comptages OSM datés
-du mois de l'extrait) décrivent l'état courant : leur dernière valeur est
-répétée sur chaque ligne de période de la zone, marquée `[snapshot 2026-08]`,
-hors fenêtre temporelle, avec une ligne de rappel de date et de qualité
-(ADR-L1-15).
+Guardrails: at most 5 indicators and 100 zones per call; without a time
+filter, the last 3 periods; at most 400 rows, and any truncation states the
+corrective action. Brackets after a value carry the quality flag (`p`
+provisional, `d` different definition, `recoded`, `osm_completeness_unknown`…).
+`SNAPSHOT` indicators (OSM counts dated to the extract month) describe the
+current state: their latest value is repeated on every period row of the zone,
+tagged `[snapshot 2026-08]`, outside the time window, with a reminder line
+giving the date and quality (ADR-L1-15).
 
-Toute erreur est actionnable :
+Every error is actionable:
 
 ```
 Indicateur 'gdp_capita' inconnu. Vouliez-vous : gdp_per_capita ?
@@ -130,169 +146,170 @@ Indicateur 'lst_summer_mean' non matérialisé et mode offline actif.
 Lancer : python -m nutshell_mcp.sync --source copernicus --indicators lst_summer_mean
 ```
 
-Note pour Qwen3.8-27B : forcer un niveau de raisonnement moyen/bas (le défaut
-`xhigh` sur-réfléchit les enchaînements de tools simples).
+Note for Qwen3.8-27B: force a medium/low reasoning level (the default `xhigh`
+over-thinks simple tool chains).
 
-## Synchronisation
+## Synchronization
 
 ```bash
-# Référentiel géographique (mensuel) — 18 fichiers GISCO, ~173 Mo
+# Geographic reference (monthly) — 18 GISCO files, ~173 MB
 .venv/bin/python -m nutshell_mcp.sync --source geo
 
-# Indicateurs Eurostat du registre (quotidien) — TOC-driven, idempotent
+# Eurostat indicators from the registry (daily) — TOC-driven, idempotent
 .venv/bin/python -m nutshell_mcp.sync --source eurostat
 
-# Un indicateur précis
+# A single indicator
 .venv/bin/python -m nutshell_mcp.sync --source eurostat --indicators gdp_per_capita
 
-# Tout, en ignorant les signaux de fraîcheur
+# Everything, ignoring freshness signals
 .venv/bin/python -m nutshell_mcp.sync --source all --full
 ```
 
-Idempotent, conçu pour un cron. Chaque source publie un signal de fraîcheur
-(`last update of data` du TOC Eurostat, ETag GISCO) comparé à l'état local dans
-`eurostat.db` : rien n'est retéléchargé sans raison, il n'y a pas de TTL. Un
-échec sur un indicateur n'interrompt pas le lot ; le rapport final liste mis à
-jour / inchangés / échecs.
+Idempotent, designed for cron. Each source publishes a freshness signal
+(`last update of data` from the Eurostat TOC, GISCO ETag) compared with the
+local state in `eurostat.db`: nothing is re-downloaded without reason, and
+there is no TTL. A failure on one indicator does not interrupt the batch; the
+final report lists updated / unchanged / failed.
 
-Le miroir natif reste pilotable seul :
+The native mirror can also be driven on its own:
 
 ```bash
 .venv/bin/python -m nutshell_mcp.mirror --datasets nama_10_gdp,une_rt_m
 .venv/bin/python -m nutshell_mcp.mirror --resync        # TOC-driven
-.venv/bin/python -m nutshell_mcp.mirror --project-only  # reprojette, zéro réseau
-.venv/bin/python -m nutshell_mcp.mirror --all           # ~24 Go compressés !
+.venv/bin/python -m nutshell_mcp.mirror --project-only  # re-project, zero network
+.venv/bin/python -m nutshell_mcp.mirror --all           # ~24 GB compressed!
 ```
 
-## Pipeline OSM
+## OSM pipeline
 
 ```bash
-.venv/bin/python -m nutshell_mcp.sync --source osm             # extraits configurés
+.venv/bin/python -m nutshell_mcp.sync --source osm             # configured extracts
 NUTSHELL_OSM_EXTRACTS=europe/luxembourg,europe/belgium \
-  .venv/bin/python -m nutshell_mcp.sync --source osm --full    # re-matérialisation complète
+  .venv/bin/python -m nutshell_mcp.sync --source osm --full    # full re-materialisation
 ```
 
-Périmètre : liste d'extraits pays Geofabrik dans `NUTSHELL_OSM_EXTRACTS`,
-ou les mots-clés `europe` (tous les pays du référentiel NUTS, ~30 Go téléchargés
-au total, pays par pays, pic disque ≈ 4,5 Go) et `eu27`, combinables avec des
-extraits explicites. Liste d'extraits
-(`continent/pays`, séparés par des virgules). Défaut volontairement restreint à
-`europe/luxembourg` seul — jamais un extrait continental ou l'Europe entière par
-défaut (30 Go). Cadence recommandée : mensuelle (§7.4), Geofabrik republiant ses
-extraits environ à ce rythme.
+Scope: a comma-separated list of Geofabrik country extracts
+(`continent/country`) in `NUTSHELL_OSM_EXTRACTS`, or the keywords `europe`
+(every country of the NUTS reference, ~30 GB downloaded in total, country by
+country, peak disk ≈ 4.5 GB) and `eu27`, which can be combined with explicit
+extracts. The default is deliberately restricted to `europe/luxembourg` alone —
+never a continental extract or all of Europe by default (30 GB). Recommended
+cadence: monthly (§7.4), as Geofabrik republishes its extracts at about that
+rate.
 
-Séquence par synchronisation : téléchargement `httpx` en streaming de chaque
-extrait `.osm.pbf`, vérifié contre son sidecar `.md5` (le sidecar, quelques
-octets, est comparé à l'état local *avant* tout téléchargement du `.pbf`, pour
-éviter de retélécharger un extrait inchangé) ; signal de fraîcheur définitif une
-fois le fichier obtenu : `osmium fileinfo -e -g header.option.timestamp`
-(l'horodatage embarqué dans le fichier, plus fiable que le `Last-Modified` HTTP
-dépendant du CDN) ; une seule passe `osmium tags-filter` combinant les tags de
-tous les indicateurs OSM du registre ; `osmium export` en GeoJSON puis
-refiltrage DuckDB (`properties[clé]==valeur` exact) et conversion en GeoParquet
-(`mirror/osm/poi_{extrait}.parquet`) ; jointure spatiale `ST_Within` contre les
-géométries GISCO par niveau (`NUTS2`, `NUTS3`, `CITY`) avec clip transfrontalier
-(un POI n'est compté que dans une zone dont le pays correspond à celui de son
-extrait d'origine — sinon un même hôpital proche d'une frontière serait compté
-deux fois si les deux pays voisins sont ingérés) ; écriture de la partition
-canonique, zéro explicite pour toute zone du périmètre sans POI, `quality =
-"osm_completeness_unknown"` systématique, `time` et `source_date` au mois de
-l'extrait le plus récent utilisé (`AAAA-MM`).
+Sequence per synchronisation: streaming `httpx` download of each `.osm.pbf`
+extract, verified against its `.md5` sidecar (the sidecar, a few bytes, is
+compared with the local state *before* any `.pbf` download, to avoid
+re-downloading an unchanged extract); the definitive freshness signal comes once
+the file is obtained: `osmium fileinfo -e -g header.option.timestamp` (the
+timestamp embedded in the file, more reliable than the CDN-dependent HTTP
+`Last-Modified`); a single `osmium tags-filter` pass combining the tags of all
+OSM indicators in the registry; `osmium export` to GeoJSON, then DuckDB
+re-filtering (exact `properties[key]==value`) and conversion to GeoParquet
+(`mirror/osm/poi_{extract}.parquet`); `ST_Within` spatial join against the
+GISCO geometries per level (`NUTS2`, `NUTS3`, `CITY`) with cross-border clipping
+(a POI is counted only in a zone whose country matches that of its source
+extract — otherwise the same hospital near a border would be counted twice if
+both neighbouring countries are ingested); writing of the canonical partition,
+explicit zero for any zone in scope without POIs, systematic `quality =
+"osm_completeness_unknown"`, `time` and `source_date` set to the month of the
+most recent extract used (`YYYY-MM`).
 
-Limites connues :
+Known limitations:
 
-- **Complétude hétérogène.** La couverture OSM varie fortement d'un territoire à
-  l'autre ; c'est pourquoi `quality` porte systématiquement
-  `osm_completeness_unknown` plutôt qu'une estimation de complétude.
-- **Doublons node/way non dédupliqués.** Une même entité physique (ex. un
-  hôpital) peut être cartographiée à la fois comme nœud isolé et comme
-  empreinte de bâtiment ; aucun tag OSM standard ne relie formellement les
-  deux, et le pipeline ne tente pas de les fusionner.
-- **`railway=halt` exclu de `train_stations_count`** (arrêts sans bâtiment
-  voyageurs) : périmètre volontairement restreint à `railway=station` pour un
-  comptage "gare" reproductible plutôt qu'un mélange gare/arrêt hétérogène selon
-  les pays.
-- `.[osm]` n'installe aucune dépendance Python supplémentaire pour ce pipeline :
-  il s'appuie sur le binaire `osmium` (`brew install osmium-tool`) via
-  `subprocess`, et sur l'extension spatiale DuckDB (`INSTALL spatial`),
-  téléchargée automatiquement par DuckDB au premier usage.
+- **Uneven completeness.** OSM coverage varies widely between territories; this
+  is why `quality` systematically carries `osm_completeness_unknown` rather than
+  a completeness estimate.
+- **Node/way duplicates are not deduplicated.** The same physical entity (e.g.
+  a hospital) may be mapped both as an isolated node and as a building
+  footprint; no standard OSM tag formally links the two, and the pipeline does
+  not attempt to merge them.
+- **`railway=halt` excluded from `train_stations_count`** (stops without a
+  passenger building): scope deliberately restricted to `railway=station` for a
+  reproducible "station" count rather than a station/stop mix that varies by
+  country.
+- `.[osm]` installs no additional Python dependency for this pipeline: it
+  relies on the `osmium` binary (`brew install osmium-tool`) via `subprocess`,
+  and on the DuckDB spatial extension (`INSTALL spatial`), downloaded
+  automatically by DuckDB on first use.
 
-## Pipeline Copernicus
+## Copernicus pipeline
 
 ```bash
-# Cadence recommandée : hebdomadaire (les produits sont annuels, la file CDS est lente)
+# Recommended cadence: weekly (products are annual, the CDS queue is slow)
 .venv/bin/python -m nutshell_mcp.sync --source copernicus --indicators lst_summer_mean
 ```
 
-Le pipeline transforme un raster en lignes canoniques : acquisition et agrégation
-temporelle (`temporal_agg`), recalage en EPSG:4326, statistiques zonales
-`exactextract` contre les géométries GISCO de chaque niveau déclaré, écriture de
-la partition, **purge du raster brut** (le poste le plus lourd est jetable).
-Le raster n'est jamais conservé, seuls les agrégats le sont — quelques centaines
-de kilo-octets par indicateur.
+The pipeline turns a raster into canonical rows: acquisition and temporal
+aggregation (`temporal_agg`), reprojection to EPSG:4326, `exactextract` zonal
+statistics against the GISCO geometries of each declared level, partition
+writing, **purge of the raw raster** (the heaviest item is disposable). The
+raster is never kept, only the aggregates are — a few hundred kilobytes per
+indicator.
 
-### Trois fournisseurs de rasters
+### Three raster providers
 
-`NUTSHELL_CDS_PROVIDER` impose la provenance pour tout le lot. Sans consigne,
-elle est déduite du `product` du registre : une réanalyse ERA5 va vers `cds` si
-`~/.cdsapirc` existe et vers `arco` sinon, tout autre produit vers `local`.
+`NUTSHELL_CDS_PROVIDER` forces the provenance for the whole batch. Without it,
+the provider is inferred from the registry `product`: an ERA5 reanalysis goes to
+`cds` if `~/.cdsapirc` exists and to `arco` otherwise; any other product goes to
+`local`.
 
-| fournisseur | source | clé | qualité |
+| provider | source | key | quality |
 |---|---|---|---|
-| `cds` | `cdsapi`, dataset `reanalysis-era5-land-monthly-means` | oui | exacte |
-| `arco` | zarr public ARCO-ERA5 sur GCS, accès anonyme | non | `sampled` |
-| `local` | GeoTIFF déposé à la main | non | exacte |
+| `cds` | `cdsapi`, dataset `reanalysis-era5-land-monthly-means` | yes | exact |
+| `arco` | public ARCO-ERA5 zarr on GCS, anonymous access | no | `sampled` |
+| `local` | hand-dropped GeoTIFF | no | exact |
 
-**`cds` — la voie officielle.** Créer un compte sur
-<https://cds.climate.copernicus.eu>, récupérer le jeton personnel sur la page
-profil, puis écrire `~/.cdsapirc` :
+**`cds` — the official route.** Create an account at
+<https://cds.climate.copernicus.eu>, get the personal token from the profile
+page, then write `~/.cdsapirc`:
 
 ```
 url: https://cds.climate.copernicus.eu/api
-key: <JETON-PERSONNEL>
+key: <PERSONAL-TOKEN>
 ```
 
-Accepter aussi les conditions d'utilisation du dataset **sur sa page web** :
-sans cela `retrieve()` échoue. Les files d'attente CDS durent des heures : le
-pipeline soumet toutes les requêtes du lot d'abord, persiste les identifiants de
-requête dans `sync_state`, puis collecte — une interruption ne re-soumet rien.
+Also accept the dataset's terms of use **on its web page**: without this,
+`retrieve()` fails. CDS queues last for hours: the pipeline submits all the
+batch's requests first, persists the request identifiers in `sync_state`, then
+collects — an interruption re-submits nothing.
 
-**`arco` — le repli sans clé.** Lecture anonyme de
-`gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3`. Le store
-est chunké par pas de temps global : **une requête réseau par heure demandée**,
-3 à 9 s chacune, quel que soit le sous-ensemble spatial. Une moyenne JJA horaire
-exacte (2208 pas) prendrait des heures. Le fournisseur échantillonne donc
-`NUTSHELL_ARCO_SAMPLES_PER_MONTH` pas de temps par mois (défaut 4, aux heures
-synoptiques 00/06/12/18 sur des jours répartis) et marque le résultat
-`quality = "sampled"` : c'est une **estimation**, pas la moyenne climatologique.
-Coût mesuré : ~1 min pour un été (12 pas de temps) sur LU + BE + FR,
-281 zones NUTS2/NUTS3/CITY.
+**`arco` — the keyless fallback.** Anonymous read of
+`gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3`. The
+store is chunked by global time step: **one network request per requested
+hour**, 3 to 9 s each, regardless of the spatial subset. An exact hourly JJA
+mean (2208 steps) would take hours. The provider therefore samples
+`NUTSHELL_ARCO_SAMPLES_PER_MONTH` time steps per month (default 4, at the
+synoptic hours 00/06/12/18 on spread-out days) and marks the result
+`quality = "sampled"`: it is an **estimate**, not the climatological mean.
+Measured cost: ~1 min for one summer (12 time steps) over LU + BE + FR, 281
+NUTS2/NUTS3/CITY zones.
 
-**`local` — la voie CLMS.** Le Copernicus Land Monitoring Service exige une
-authentification que le pipeline ne porte pas : c'est le chemin prévu pour
-`imperviousness_share`. Télécharger le raster depuis
+**`local` — the CLMS route.** The Copernicus Land Monitoring Service requires
+authentication that the pipeline does not handle: this is the intended path for
+`imperviousness_share`. Download the raster from
 <https://land.copernicus.eu/en/products/high-resolution-layer-imperviousness>,
-le reprojeter si besoin (`gdalwarp -t_srs EPSG:4326 …`) et le déposer sous
-`NUTSHELL_RASTER_DIR/{indicateur}/{année}.tif`. Le pipeline fait le reste. En
-son absence, l'erreur nomme le chemin attendu et l'URL de téléchargement.
+reproject it if needed (`gdalwarp -t_srs EPSG:4326 …`) and drop it under
+`NUTSHELL_RASTER_DIR/{indicator}/{year}.tif`. The pipeline does the rest. If it
+is missing, the error names the expected path and the download URL.
 
 ### Configuration
 
-| variable | rôle | défaut |
+| variable | purpose | default |
 |---|---|---|
-| `NUTSHELL_CDS_PROVIDER` | `cds` \| `arco` \| `local` | `cds` si clé, sinon `arco` |
-| `NUTSHELL_CDS_YEARS` | `2023`, `2020,2023`, `2020-2023` | dernière année complète |
-| `NUTSHELL_CDS_COUNTRIES` | périmètre spatial, ex. `LU,BE,FR` | tout le référentiel |
-| `NUTSHELL_CDS_BBOX` | emprise imposée `ouest,sud,est,nord` (ex. `-12,34,35,72` = Europe continentale) ; les zones hors emprise sont ignorées | emprise des zones |
-| `NUTSHELL_ARCO_SAMPLES_PER_MONTH` | pas de temps échantillonnés par mois | `4` |
-| `NUTSHELL_RASTER_DIR` | racine des rasters du fournisseur `local` | `{données}/rasters` |
-| `NUTSHELL_CDS_KEEP_RASTERS` | conserve les rasters intermédiaires (debug) | purge |
-| `NUTSHELL_CDS_TIMEOUT` / `NUTSHELL_CDS_POLL` | attente et scrutation CDS (s) | `3600` / `30` |
+| `NUTSHELL_CDS_PROVIDER` | `cds` \| `arco` \| `local` | `cds` if key, else `arco` |
+| `NUTSHELL_CDS_YEARS` | `2023`, `2020,2023`, `2020-2023` | last complete year |
+| `NUTSHELL_CDS_COUNTRIES` | spatial scope, e.g. `LU,BE,FR` | whole reference |
+| `NUTSHELL_CDS_BBOX` | forced extent `west,south,east,north` (e.g. `-12,34,35,72` = continental Europe); zones outside the extent are ignored | extent of the zones |
+| `NUTSHELL_ARCO_SAMPLES_PER_MONTH` | time steps sampled per month | `4` |
+| `NUTSHELL_RASTER_DIR` | root of the `local` provider's rasters | `{data}/rasters` |
+| `NUTSHELL_CDS_KEEP_RASTERS` | keep intermediate rasters (debug) | purge |
+| `NUTSHELL_CDS_TIMEOUT` / `NUTSHELL_CDS_POLL` | CDS wait and polling (s) | `3600` / `30` |
 
-`NUTSHELL_CDS_COUNTRIES` et `NUTSHELL_CDS_BBOX` sont les leviers de coût : sans eux, l'emprise couvre tout
-le référentiel GISCO (y compris les régions ultrapériphériques, de la Guadeloupe
-à La Réunion), soit une requête CDS beaucoup plus lourde et quelques milliers de
-zones à agréger.
+`NUTSHELL_CDS_COUNTRIES` and `NUTSHELL_CDS_BBOX` are the cost levers: without
+them, the extent covers the whole GISCO reference (including the outermost
+regions, from Guadeloupe to Réunion), meaning a much heavier CDS request and a
+few thousand zones to aggregate.
 
 ```bash
 NUTSHELL_CDS_PROVIDER=arco NUTSHELL_CDS_COUNTRIES=LU,BE,FR NUTSHELL_CDS_YEARS=2023 \
@@ -307,23 +324,21 @@ NUTSHELL_CDS_PROVIDER=arco NUTSHELL_CDS_COUNTRIES=LU,BE,FR NUTSHELL_CDS_YEARS=20
   · lst_summer_mean 2023 : 12 pas de temps échantillonnés
 ```
 
-Le signal de fraîcheur est la dernière année matérialisée
-(`sync_state("copernicus", "{id}:last_year")`) : une année déjà présente n'est
-pas recalculée, les années antérieures sont relues et conservées. `--full`
-ignore ce signal.
+The freshness signal is the last materialised year
+(`sync_state("copernicus", "{id}:last_year")`): a year already present is not
+recomputed, earlier years are re-read and kept. `--full` ignores this signal.
 
-### Qualité des valeurs
+### Value quality
 
-`sampled` (estimation échantillonnée, fournisseur `arco`) et `partial_coverage`
-(la zone n'est pas entièrement couverte par le raster : bord d'emprise, maille
-sans donnée) apparaissent entre crochets dans `get_indicators`. Les températures
-sont converties de kelvins en degrés Celsius pour respecter l'unité `DEG_C` du
-registre.
+`sampled` (sampled estimate, `arco` provider) and `partial_coverage` (the zone
+is not fully covered by the raster: extent edge, cell with no data) appear in
+brackets in `get_indicators`. Temperatures are converted from kelvins to degrees
+Celsius to match the registry's `DEG_C` unit.
 
-## Ajouter un indicateur = un fichier YAML
+## Adding an indicator = one YAML file
 
-Aucun code. Déposer `registry/{id}.yaml` (le nom du fichier doit être l'`id`),
-valider, synchroniser :
+No code. Drop `registry/{id}.yaml` (the file name must be the `id`), validate,
+synchronise:
 
 ```yaml
 # registry/gdp_per_capita.yaml
@@ -333,20 +348,20 @@ unit: EUR_HAB
 source: eurostat              # eurostat | copernicus | osm
 frequency: A                  # A | Q | M | SNAPSHOT
 geo_levels: [NUTS0, NUTS1, NUTS2]
-nuts_vintage: 2024            # optionnel (2024 par défaut, 2021 accepté)
-description: "…"              # optionnel, indexé pour la recherche
-extraction:                   # section propre à la source déclarée
+nuts_vintage: 2024            # optional (2024 by default, 2021 accepted)
+description: "…"              # optional, indexed for search
+extraction:                   # section specific to the declared source
   dataset: nama_10r_2gdp
   filters: { freq: A, unit: EUR_HAB }
-  value_dim: geo              # dimension projetée sur geo_code
+  value_dim: geo              # dimension projected onto geo_code
 ```
 
 ```bash
-.venv/bin/python -m nutshell_mcp.registry validate     # à mettre en CI
+.venv/bin/python -m nutshell_mcp.registry validate     # put this in CI
 .venv/bin/python -m nutshell_mcp.sync --source eurostat --indicators gdp_per_capita
 ```
 
-Sections `extraction` des autres sources :
+`extraction` sections for the other sources:
 
 ```yaml
 source: copernicus
@@ -358,88 +373,87 @@ extraction:
 
 source: osm
 extraction:
-  tags: [{ key: amenity, value: hospital }]   # plusieurs paires = combinées en OU
-  geometry: [node, way, relation]             # un hôpital est souvent way ou relation
+  tags: [{ key: amenity, value: hospital }]   # several pairs = combined with OR
+  geometry: [node, way, relation]             # a hospital is often a way or relation
   aggregation: count
 ```
 
-Le serveur relit le registre dès que les YAML changent : un nouvel indicateur
-apparaît dans `search_indicators` sans redémarrage. Tant qu'il n'est pas
-matérialisé, `get_indicators` renvoie la commande de sync à lancer.
+The server reloads the registry as soon as the YAML files change: a new
+indicator shows up in `search_indicators` without a restart. Until it is
+materialised, `get_indicators` returns the sync command to run.
 
-Registre livré : `gdp_per_capita`, `unemployment_rate`, `population`,
-`median_age`, `old_age_dependency` (Eurostat, matérialisables) ;
-`lst_summer_mean` (Copernicus, matérialisable), `imperviousness_share`
-(Copernicus, raster CLMS à déposer — voir *Pipeline Copernicus*) ;
-`hospitals_count`, `train_stations_count`, `schools_count` (OSM, lot 2).
+Shipped registry: `gdp_per_capita`, `unemployment_rate`, `population`,
+`median_age`, `old_age_dependency` (Eurostat, materialisable);
+`lst_summer_mean` (Copernicus, materialisable), `imperviousness_share`
+(Copernicus, CLMS raster to be dropped in — see *Copernicus pipeline*);
+`hospitals_count`, `train_stations_count`, `schools_count` (OSM, batch 2).
 
-## Layout des données
+## Data layout
 
-Tout est relatif à `NUTSHELL_DATA_DIR` (défaut : racine du dépôt).
+Everything is relative to `NUTSHELL_DATA_DIR` (default: repository root).
 
 ```
-mirror/eurostat/{dataset}.parquet          grain natif (dims…, time, value, flag)
+mirror/eurostat/{dataset}.parquet          native grain (dims…, time, value, flag)
 mirror/indicators/indicator={id}/part-0.parquet
-                                           grain canonique, 9 colonnes, zstd
+                                           canonical grain, 9 columns, zstd
 mirror/geo/NUTS_RG_{01M|10M}_{2024|2021}_4326_LEVL_{0..3}.geojson
 mirror/geo/URAU_RG_100K_{2024|2021}_4326_CITIES.geojson
-eurostat.db                                catalogue FTS5, DSD, registre, états sync
-work/                                      temporaire, purgeable
-registry/*.yaml                            définitions d'indicateurs (versionné)
+eurostat.db                                FTS5 catalogue, DSD, registry, sync state
+work/                                      temporary, purgeable
+registry/*.yaml                            indicator definitions (versioned)
 ```
 
-Table canonique : `indicator, geo_code, time, value, unit, quality, source,
-source_date, ingested_at`. Partitionnement Hive par indicateur, écriture
-atomique (un indicateur n'est jamais lisible à moitié re-matérialisé).
+Canonical table: `indicator, geo_code, time, value, unit, quality, source,
+source_date, ingested_at`. Hive partitioning by indicator, atomic writes (an
+indicator is never readable half re-materialised).
 
-Réplication d'une instance : `rsync` de `mirror/` + `eurostat.db`. Le serveur est
-sans état.
+Replicating an instance: `rsync` of `mirror/` + `eurostat.db`. The server is
+stateless.
 
-Ordres de grandeur : catalogue + DSD ~150 Mo ; géométries GISCO ~173 Mo ; miroir
-natif thématique 1-2 Go (24 Go pour l'intégralité du catalogue) ; table canonique
-< 500 Mo même à 100 indicateurs au niveau NUTS3.
+Orders of magnitude: catalogue + DSD ~150 MB; GISCO geometries ~173 MB; thematic
+native mirror 1–2 GB (24 GB for the whole catalogue); canonical table < 500 MB
+even with 100 indicators at NUTS3 level.
 
-## Mode offline
+## Offline mode
 
 ```bash
 NUTSHELL_OFFLINE=1 .venv/bin/python -m nutshell_mcp.server
 ```
 
-Aucun appel réseau : catalogue, structures et données servis depuis le disque
-sans considération de TTL ; tout élément absent renvoie la commande de sync à
-exécuter. En mode connecté, la règle *serve-stale-on-error* s'applique partout —
-une donnée locale datée est toujours préférée à une erreur, la date de fraîcheur
-étant systématiquement affichée.
+No network calls: catalogue, structures and data are served from disk with no
+TTL consideration; anything missing returns the sync command to run. In
+connected mode, the *serve-stale-on-error* rule applies everywhere — dated local
+data is always preferred to an error, and the freshness date is always shown.
 
-Alias historique conservé : `EUROSTAT_OFFLINE=1`.
+Legacy alias kept: `EUROSTAT_OFFLINE=1`.
 
 ## Tests
 
 ```bash
-.venv/bin/pytest -q                                    # sans réseau
-.venv/bin/pytest -m network --override-ini="addopts="  # ingestion GISCO + Eurostat réelles
+.venv/bin/pytest -q                                    # no network
+.venv/bin/pytest -m network --override-ini="addopts="  # real GISCO + Eurostat ingestion
 .venv/bin/ruff check .
 ```
 
-## État et suite
+## Status and next steps
 
-Lot 1 (socle unifié) livré : référentiel géographique, registre, table canonique,
-projection Eurostat, 3 tools unifiés.
+Batch 1 (unified foundation) delivered: geographic reference, registry,
+canonical table, Eurostat projection, 3 unified tools.
 
-Lot 2 (OSM) livré : `nutshell_mcp/ingest_osm.py`, extraits Geofabrik → POI →
-jointure spatiale DuckDB → comptages (`hospitals_count`, `train_stations_count`,
-`schools_count`) — voir « Pipeline OSM » ci-dessus.
+Batch 2 (OSM) delivered: `nutshell_mcp/ingest_osm.py`, Geofabrik extracts → POIs
+→ DuckDB spatial join → counts (`hospitals_count`, `train_stations_count`,
+`schools_count`) — see "OSM pipeline" above.
 
-Lot 3 (Copernicus) livré : `nutshell_mcp/ingest_cds.py`, trois fournisseurs de
-rasters, statistiques zonales `exactextract` — voir « Pipeline Copernicus ».
-Reste à faire :
+Batch 3 (Copernicus) delivered: `nutshell_mcp/ingest_cds.py`, three raster
+providers, `exactextract` zonal statistics — see "Copernicus pipeline".
+Remaining:
 
-- **lot 3, compléments** : brancher une vraie clé CDS (le chemin `cdsapi` est
-  implémenté et testé par mock, jamais exécuté contre le service réel) et
-  déposer le raster CLMS d'imperméabilisation ;
-- **lot 4 — durcissement** : HTTP authentifié, recherche hybride par embeddings,
-  indicateurs dérivés (densités, distances), conversion complète des millésimes.
+- **batch 3, follow-ups**: plug in a real CDS key (the `cdsapi` path is
+  implemented and tested by mock, never run against the real service) and drop
+  in the CLMS imperviousness raster;
+- **batch 4 — hardening**: authenticated HTTP, hybrid embedding search, derived
+  indicators (densities, distances), full vintage conversion.
 
-Chaque module d'ingestion expose `sync(specs, full) -> SyncReport` et n'écrit
-jamais de Parquet lui-même : le contrat exact est documenté en tête de
-`nutshell_mcp/sync.py` et `nutshell_mcp/indicators.py`.
+Each ingestion module exposes `sync(specs, full) -> SyncReport` and never writes
+Parquet itself: the exact contract is documented at the top of
+`nutshell_mcp/sync.py` and `nutshell_mcp/indicators.py`.
