@@ -246,7 +246,13 @@
       <div class="steps">
         <div class="step"><div>
           <h3>Add the server</h3>
-          <p>Endpoint: <code>https://nutshell.scamp.fr/mcp</code> (streamable HTTP, no key).</p>
+          <p><strong>Claude Code plugin</strong>: two commands, nothing else to install.</p>
+          <div class="copy">
+            <button type="button" data-copy="plugin">Copy</button>
+<pre id="plugin">/plugin marketplace add scampion/nutshell-mcp
+/plugin install nutshell@nutshell</pre>
+          </div>
+          <p style="margin-top:14px"><strong>Any other MCP client</strong>: endpoint <code>https://nutshell.scamp.fr/mcp</code> (streamable HTTP, no key).</p>
           <div class="copy">
             <button type="button" data-copy="cfg">Copy</button>
 <pre id="cfg">{
@@ -258,7 +264,7 @@
   }
 }</pre>
           </div>
-          <p style="margin-top:10px">With Claude Code: <code>claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp</code></p>
+          <p style="margin-top:10px">Claude Code without the plugin: <code>claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp</code></p>
         </div></div>
         <div class="step"><div>
           <h3>Ask a question about places</h3>
