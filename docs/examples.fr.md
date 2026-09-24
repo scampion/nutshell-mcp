@@ -14,9 +14,9 @@ choisit un tool, le serveur valide et répond depuis les données locales.
 |---|---|---|---|
 | 1 | [Où ouvrir une clinique gériatrique ?](#1-où-ouvrir-une-clinique-gériatrique-) | couche unifiée + grain natif | croisement Eurostat / OSM, flags qualité |
 | 2 | [Comparer quatre régions](#2-comparer-quatre-régions) | 3 tools unifiés | un tableau, une colonne par indicateur |
-| 3 | [Une faute de frappe corrigée par le serveur](#3-une-faute-de-frappe-corrigée-par-le-serveur) | `get_indicators` | erreurs actionnables |
+| 3 | [Quand le registre s'arrête à NUTS2](#3-quand-le-registre-sarrête-à-nuts2) | couche unifiée → grain natif | repli sur NUTS3, erreurs actionnables |
 | 4 | [Le tourisme, au-delà du registre](#4-le-tourisme-au-delà-du-registre) | grain natif Eurostat | le catalogue de 10 301 datasets |
-| 5 | [Un nouvel indicateur en un fichier YAML](#5-un-nouvel-indicateur-en-un-fichier-yaml) | registre + `sync` | étendre le serveur sans code |
+| 5 | [Un nouvel indicateur en un fichier YAML](#5-un-nouvel-indicateur-en-un-fichier-yaml) | grain natif → registre | le modèle rédige le YAML |
 
 ---
 
@@ -41,7 +41,7 @@ lits), il descend au grain natif — `search_datasets` → `get_structure` →
 `list_codes` → `query_data` — pour trouver les vrais *lits* d'hôpitaux par
 région.
 
-**Ce qu'un vrai run a produit** (extrait condensé de la réponse du modèle) :
+**Ce qu'un vrai run a produit** (extrait condensé — [réponse complète](results/01-geriatric-clinic.md)) :
 
 | # | Région (NUTS2) | Dépendance 65+ | Lits / 100 000 hab. | PIB / hab. |
 |---|---|---|---|---|
@@ -85,49 +85,95 @@ de l'Oberbayern, de la Lombardie et de la Catalogne. Laquelle paraît la plus
 dynamique, et pourquoi ?
 ```
 
-**Enchaînement attendu.**
+**Vrai run** avec Qwen3.8-27B (prompt en anglais) —
+[transcript complet](results/02-compare-regions.md). Le modèle a lancé en
+parallèle 3 `search_indicators` et 4 `list_zones`, a relancé une fois
+`list_zones` (`contains="Île-de-France"` ne trouve rien : le nom GISCO est
+`Ile-de-France`, sans accent), puis 2 appels `get_indicators` :
 
 ```
-search_indicators("chômage âge médian PIB")
-list_zones("NUTS2", contains="Oberbayern")        # ×4, pour obtenir FR10, DE21, ITC4, ES51
-get_indicators(["unemployment_rate", "median_age", "gdp_per_capita"],
-               ["FR10", "DE21", "ITC4", "ES51"])
+geo_code | time | unemployment_rate | median_age | gdp_per_capita
+DE21 | 2025 | 3 | 43.3 |
+DE21 | 2024 | 2.7 | 43.3 | 75700 [e]
+DE21 | 2023 | 2.3 | 43.3 [b] | 74700 [p]
+ES51 | 2025 | 8.4 [d] | 44.6 |
+ES51 | 2024 | 8.9 [d] | 44.4 | 37500 [p]
+…
+[Source : eurostat (unemployment_rate 30.06.2026, median_age 10.07.2026, gdp_per_capita 10.02.2026)]
 ```
 
-La réponse est un tableau pivoté, une colonne par indicateur, avec une ligne de
-provenance (`[Source : eurostat (date)]`). Sans filtre temporel, le serveur
-renvoie les 3 dernières périodes : le modèle voit la tendance sans effort.
+Réponse (extrait, traduit) :
+
+| Région | Chômage | Âge médian | PIB / hab. |
+|---|---|---|---|
+| **Oberbayern** (DE21) | **2,7 %** (2024) | 43,3 | **75 700 €** |
+| **Île-de-France** (FR10) | 8,0 % (2024) | **38,2** | 69 500 € |
+| **Lombardia** (ITC4) | 3,7 % (2024) | 48,1 | 50 400 € |
+| **Cataluña** (ES51) | 8,9 % (2024) | 44,4 | 37 500 € |
+
+> **L'Oberbayern est la plus dynamique *aujourd'hui* (richesse + plein
+> emploi).** Si l'on entend le dynamisme comme un *potentiel de croissance*,
+> c'est la population jeune de l'Île-de-France qui se distingue.
+
+Sans filtre temporel, le serveur renvoie les 3 dernières périodes : le modèle
+voit la tendance sans effort. Point de vigilance avec un modèle 27B : dans son
+raisonnement, il a pris le flag `[d]` pour « non disponible » au lieu de
+*définition différente* — demander explicitement la fiabilité (exemple 1) pousse
+le modèle à vérifier.
 
 ---
 
-## 3. Une faute de frappe corrigée par le serveur
+## 3. Quand le registre s'arrête à NUTS2
 
 ```
-Donne-moi le gdp_capita de FR10 sur les 3 dernières années.
+Give me the gdp_capita of FR10 for the last 3 years, then the GDP per capita
+of the NUTS3 zone FR101.
 ```
 
-`gdp_capita` n'existe pas. Au lieu d'échouer, le serveur répond :
+**Vrai run** avec Qwen3.8-27B — [transcript complet](results/03-nuts3-fallback.md).
+Le modèle n'a jamais envoyé la faute de frappe : il a d'abord appelé
+`search_indicators("GDP per capita")` et utilisé le bon identifiant,
+`gdp_per_capita`. Le registre s'arrête à NUTS2 : il a obtenu FR10 via
+`get_indicators`, puis est descendu au grain natif pour Paris :
 
 ```
+search_datasets("GDP NUTS")          → nama_10r_3gdp | Gross domestic product (GDP) at current market prices by NUTS 3 region
+get_structure("nama_10r_3gdp")       → unit: EUR_HAB (Euro per inhabitant), …
+query_data("nama_10r_3gdp", {"geo": "FR101", "unit": "EUR_HAB"}, 2022–2024)
+
+freq | unit | geo | time | value | flag
+A | EUR_HAB | FR101 | 2022 | 123100.0 | p
+A | EUR_HAB | FR101 | 2023 | 125300.0 | p
+A | EUR_HAB | FR101 | 2024 | 133700.0 | p
+[Source : miroir local, données Eurostat du 10.02.2026]
+```
+
+Réponse : FR10 63 200 € → 66 800 € → 69 500 €, FR101 123 100 € → 125 300 € →
+133 700 € (2022–2024, toutes provisoires).
+
+**Erreurs actionnables.** Si le modèle avait envoyé la faute de frappe ou
+demandé NUTS3 au registre, le serveur aurait répondu avec la correction
+(vraies sorties du serveur) :
+
+```
+get_indicators(["gdp_capita"], ["FR10"])
 Indicateur 'gdp_capita' inconnu. Vouliez-vous : gdp_per_capita ?
 Utilisez search_indicators pour explorer.
-```
 
-et le modèle réessaie seul. Chaque erreur nomme l'action corrective et propose
-3 suggestions au plus (`difflib`) — c'est ce qui permet à un modèle local de 27B
-de suivre des enchaînements de tools sans humain.
-
-Même principe pour la granularité :
-
-```
-Donne-moi le PIB par habitant de la zone NUTS3 FR101.
-```
-
-```
-'gdp_per_capita' n'existe pas au niveau NUTS3 (zone 'FR101') ; niveaux
-disponibles : NUTS0, NUTS1, NUTS2.
+get_indicators(["gdp_per_capita"], ["FR101"])
+'gdp_per_capita' n'existe pas au niveau NUTS3 (zone 'FR101') ; niveaux disponibles : NUTS0, NUTS1, NUTS2.
 Séparez la requête ou demandez la zone englobante 'FR10' (niveau NUTS2).
 ```
+
+Chaque erreur nomme l'action corrective et propose 3 suggestions au plus
+(`difflib`) : c'est ce qui permet à un modèle de 27B de suivre des enchaînements
+de tools sans humain.
+
+> *Ce run a révélé une faiblesse depuis corrigée :* quatre appels à
+> `search_datasets` (« gross domestic product regions », « GDP regions »…) ne
+> renvoyaient rien, car la recherche exigeait chaque mot à l'identique. Elle
+> accepte désormais les pluriels et, si aucun titre ne contient tous les mots,
+> se replie sur « au moins un mot » en le signalant.
 
 ---
 
@@ -137,49 +183,93 @@ Le registre contient un jeu d'indicateurs choisis ; le grain natif expose tout
 Eurostat.
 
 ```
-Trouve dans Eurostat un dataset sur les nuitées dans les hébergements
-touristiques par région. Quelles sont les cinq régions NUTS2 d'Espagne et
-d'Italie avec le plus de nuitées la dernière année disponible ? Indique-moi les
-filtres utilisés.
+Find in Eurostat a dataset on nights spent at tourist accommodation by region.
+Which five NUTS2 regions of Spain and Italy had the most nights in the latest
+year available? Tell me which filters you used.
 ```
 
-**Enchaînement attendu.** `search_datasets("nuitées hébergements touristiques")`
-→ `get_structure("tour_occ_nin2")` (dimensions, tailles, plage temporelle) →
-`list_codes("tour_occ_nin2", "nace_r2")` et `list_codes("tour_occ_nin2", "unit")`
-pour choisir des codes valides → `query_data(...)` avec filtres. La description
-de chaque tool nomme le suivant : le modèle n'a pas besoin de connaître le
-dataset à l'avance. `query_data` est plafonné à 400 lignes et indique comment
-restreindre la requête en cas de troncature.
+**Vrai run** avec Qwen3.8-27B — [transcript complet](results/04-tourism.md). Le
+modèle a cherché dans le catalogue, comparé `tour_occ_nin2` et `tour_occ_nin2dc`
+avec `get_structure`, listé les codes espagnols et italiens avec `list_codes`,
+puis lancé un seul `query_data` sur les 40 régions :
+
+| Rang | Région | Code | Année | Nuitées |
+|---|---|---|---|---|
+| 1 | Canarias | ES70 | 2024 | 99 488 821 |
+| 2 | Cataluña | ES51 | 2024 | 88 670 191 |
+| 3 | Andalucía | ES61 | 2024 | 77 308 673 |
+| 4 | Veneto | ITH3 | 2025 | 74 157 131 |
+| 5 | Illes Balears | ES53 | 2024 | 73 845 222 |
+
+Il a indiqué ses filtres (`unit=NR`, `c_resid=TOTAL`, `nace_r2=I551-I553`,
+`freq=A`) et signalé de lui-même que la dernière année est 2024 pour l'Espagne et
+2025 pour l'Italie — puis vérifié qu'une comparaison à année égale donne le même
+top 5. Tous les chiffres correspondent au miroir.
+
+> *Un premier run a révélé une faiblesse du serveur, depuis corrigée* —
+> [transcript](results/04-tourism-before-fix.md). `list_codes(contains="ES")`
+> cherchait aussi dans les libellés (« Bruxell**es** », « H**es**sen »…), qui
+> occupaient 36 des 60 lignes affichées ; ES63, ES64 et ES70 tombaient après la
+> coupure. Le modèle a ignoré l'indication `… et 53 autres, affinez 'contains'`
+> pour l'Espagne, a oublié les Canaries et donné un mauvais n° 1. Les codes qui
+> commencent par le filtre passent désormais en premier, niveaux hauts d'abord.
 
 ---
 
 ## 5. Un nouvel indicateur en un fichier YAML
 
-Pour la personne qui exploite le serveur, pas pour le modèle. Ajouter un
-indicateur ne demande aucun code — voir
-[Ajouter un indicateur](../README.fr.md#ajouter-un-indicateur--un-fichier-yaml) :
+Ajouter un indicateur au registre ne demande aucun code — voir
+[Ajouter un indicateur](../README.fr.md#ajouter-un-indicateur--un-fichier-yaml).
+Le modèle peut même écrire le YAML :
+
+```
+I run a nutshell-mcp server and want to add a new indicator: hospital beds per
+100,000 inhabitants at NUTS2 level. Find the right Eurostat dataset and the
+filter codes, then write the registry YAML file using this schema: id, label,
+unit, source: eurostat, frequency: A, geo_levels, extraction: {dataset,
+filters, value_dim: geo}. Check that the codes you use really exist.
+```
+
+**Vrai run** avec Qwen3.8-27B — [transcript complet](results/05-new-indicator-yaml.md).
+Le modèle a comparé trois datasets candidats avec `get_structure`, vérifié
+chaque code avec `list_codes`, lancé un `query_data` de test, puis écrit :
 
 ```yaml
-# registry/my_indicator.yaml — même schéma pour tout dataset Eurostat
-id: my_indicator
-label: "…"
-unit: …
+id: hospital_beds_per_100k
+label: "Lits d'hôpital disponibles pour 100 000 habitants"
+unit: P_HTHAB
 source: eurostat
 frequency: A
-geo_levels: [NUTS2]
+geo_levels:
+  - NUTS2
 extraction:
-  dataset: <code trouvé avec search_datasets>
-  filters: { … }
+  dataset: hlth_rs_bdsrg
+  filters:
+    freq: A
+    unit: P_HTHAB
+    facility: HBEDT
   value_dim: geo
 ```
 
+Ce fichier passe tel quel `python -m nutshell_mcp.registry validate`. Le modèle
+a aussi signalé de lui-même que le dataset mélange des générations NUTS (`DE1`,
+`ITC4`) et s'arrête vers 2020.
+
+**Ce qu'un humain doit encore vérifier.** Cette réserve est l'indice :
+`hlth_rs_bdsrg` s'intitule *« Hospital beds by NUTS 2 region - historical data
+(1993-2016) »*. La série courante est `hlth_rs_bdsrg2` (*Available beds in
+hospitals by NUTS 2 region*, 1993–2025). Remplacer le dataset, puis :
+
 ```bash
 .venv/bin/python -m nutshell_mcp.registry validate
-.venv/bin/python -m nutshell_mcp.sync --source eurostat --indicators my_indicator
+.venv/bin/python -m nutshell_mcp.sync --source eurostat --indicators hospital_beds_per_100k
 ```
 
 Le serveur relit le registre à chaud : l'indicateur apparaît dans
-`search_indicators` sans redémarrage, et l'exemple 1 peut alors l'utiliser.
+`search_indicators` sans redémarrage, et l'exemple 1 peut alors l'utiliser via
+`get_indicators` plutôt que par le grain natif. (Le modèle proposait aussi de
+ranger le fichier sous `indicators/` ; le répertoire du registre est
+`registry/`.)
 
 ---
 
