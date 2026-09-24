@@ -28,7 +28,7 @@ package, the server declared with direct tools in a `.mcp.json`:
 
 ```json
 { "mcpServers": { "nutshell": {
-    "url": "https://nutshell.scamp.fr/mcp", "directTools": true, "lifecycle": "eager" } } }
+    "url": "https://nutshell.arcamens.ai/mcp", "directTools": true, "lifecycle": "eager" } } }
 ```
 
 ```bash

@@ -3,7 +3,7 @@
 [🇫🇷 Français](examples.fr.md) · 🇬🇧 English · [← README](../README.md)
 
 Each example is a prompt you can paste into any MCP client connected to the
-server (`https://nutshell.scamp.fr/mcp`, or your own instance). The model never
+server (`https://nutshell.arcamens.ai/mcp`, or your own instance). The model never
 writes an SDMX URL, an Overpass query or a CDS request: it picks a tool, the
 server validates and answers from local data.
 

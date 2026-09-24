@@ -1,9 +1,9 @@
 {
   "name": "nutshell",
   "version": "0.2.0",
-  "description": "Données territoriales européennes (Eurostat, Copernicus, OSM) via le serveur MCP distant nutshell.scamp.fr.",
+  "description": "Données territoriales européennes (Eurostat, Copernicus, OSM) via le serveur MCP distant nutshell.arcamens.ai.",
   "author": { "name": "Sébastien Campion", "email": "sebastien.campion@foss4.eu" },
-  "homepage": "https://nutshell.scamp.fr",
+  "homepage": "https://nutshell.arcamens.ai",
   "repository": "https://github.com/scampion/nutshell-mcp",
   "license": "AGPL-3.0-or-later"
 }

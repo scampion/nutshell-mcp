@@ -3,7 +3,7 @@
 🇫🇷 Français · [🇬🇧 English](examples.md) · [← README](../README.fr.md)
 
 Chaque exemple est un prompt à coller dans n'importe quel client MCP connecté
-au serveur (`https://nutshell.scamp.fr/mcp`, ou votre propre instance). Le
+au serveur (`https://nutshell.arcamens.ai/mcp`, ou votre propre instance). Le
 modèle n'écrit jamais d'URL SDMX, de requête Overpass ni de requête CDS : il
 choisit un tool, le serveur valide et répond depuis les données locales.
 

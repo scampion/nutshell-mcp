@@ -33,7 +33,7 @@ Document de référence : `architecture-spec-mcp-territorial.md`.
 ## Démarrage rapide : serveur hébergé
 
 Aucune installation : un serveur de démonstration public tourne sur
-`https://nutshell.scamp.fr/mcp` (HTTP streamable, sans clé ; disponibilité au mieux).
+`https://nutshell.arcamens.ai/mcp` (HTTP streamable, sans clé ; disponibilité au mieux).
 
 **Plugin Claude Code (marketplace)**
 
@@ -45,7 +45,7 @@ Aucune installation : un serveur de démonstration public tourne sur
 **Claude Code, sans le plugin**
 
 ```bash
-claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp
+claude mcp add --transport http nutshell https://nutshell.arcamens.ai/mcp
 ```
 
 **Autre client MCP** (connecteur personnalisé Claude Desktop, Cursor, …) : ajouter

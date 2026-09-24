@@ -2,7 +2,7 @@
   "mcpServers": {
     "nutshell": {
       "type": "http",
-      "url": "https://nutshell.scamp.fr/mcp"
+      "url": "https://nutshell.arcamens.ai/mcp"
     }
   }
 }

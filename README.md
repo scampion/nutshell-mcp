@@ -34,7 +34,7 @@ Deviations and implementation choices: `DECISIONS.md`.
 
 ## Quick start: use the hosted server
 
-No install needed: a public demo server runs at `https://nutshell.scamp.fr/mcp`
+No install needed: a public demo server runs at `https://nutshell.arcamens.ai/mcp`
 (streamable HTTP, no key; best-effort availability).
 
 **Claude Code plugin (marketplace)**
@@ -47,7 +47,7 @@ No install needed: a public demo server runs at `https://nutshell.scamp.fr/mcp`
 **Claude Code, without the plugin**
 
 ```bash
-claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp
+claude mcp add --transport http nutshell https://nutshell.arcamens.ai/mcp
 ```
 
 **Any other MCP client** (Claude Desktop custom connector, Cursor, …): add a
