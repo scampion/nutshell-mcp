@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nutshell-mcp — Europe in a nutshell</title>
+<meta name="description" content="An MCP server that gives your AI assistant European territorial data — Eurostat, Copernicus and OpenStreetMap — at a single grain: zone × indicator × period.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23233a8b'/><g fill='%23f5c518'><circle cx='16' cy='6' r='1.6'/><circle cx='26' cy='16' r='1.6'/><circle cx='16' cy='26' r='1.6'/><circle cx='6' cy='16' r='1.6'/><circle cx='23' cy='9' r='1.6'/><circle cx='23' cy='23' r='1.6'/><circle cx='9' cy='23' r='1.6'/><circle cx='9' cy='9' r='1.6'/></g></svg>">
+<style>
+  :root {
+    --bg: #fbfaf7; --surface: #ffffff; --ink: #1b1f2a; --muted: #5b6272;
+    --line: #e4e1d8; --accent: #233a8b; --accent-ink: #ffffff; --gold: #b8860b;
+    --warn-bg: #fff6e0; --warn-line: #e9c46a; --warn-ink: #5c4400;
+    --code-bg: #f2f0ea; --good: #2e7d4f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11141b; --surface: #181c25; --ink: #e8e9ee; --muted: #9aa1b2;
+      --line: #2a303d; --accent: #8fa6ff; --accent-ink: #0d1020; --gold: #f5c518;
+      --warn-bg: #2a2310; --warn-line: #7a6320; --warn-ink: #f3dfa2;
+      --code-bg: #0d1016; --good: #6fcf97;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11141b; --surface: #181c25; --ink: #e8e9ee; --muted: #9aa1b2;
+    --line: #2a303d; --accent: #8fa6ff; --accent-ink: #0d1020; --gold: #f5c518;
+    --warn-bg: #2a2310; --warn-line: #7a6320; --warn-ink: #f3dfa2;
+    --code-bg: #0d1016; --good: #6fcf97;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  code, pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.86em; }
+  :not(pre) > code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; line-height: 1.5; margin: 0;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  header.top { border-bottom: 1px solid var(--line); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; }
+  .brand { font-weight: 700; letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
+  .brand span { color: var(--gold); }
+  nav a { color: var(--muted); text-decoration: none; margin-left: 18px; font-size: 0.94em; }
+  nav a:hover { color: var(--ink); }
+  @media (max-width: 620px) { nav a.opt { display: none; } }
+
+  .hero { padding: 64px 0 40px; }
+  .hero h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 18px; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p.lead { font-size: 1.15em; color: var(--muted); max-width: 42em; margin: 0 0 28px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-block; padding: 11px 18px; border-radius: 8px; font-weight: 600;
+    text-decoration: none; border: 1px solid var(--accent);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.ghost { color: var(--accent); }
+
+  .disclaimer {
+    background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-ink);
+    border-radius: 10px; padding: 16px 18px; margin: 8px 0 8px;
+  }
+  .disclaimer strong { display: block; margin-bottom: 4px; }
+  .disclaimer p { margin: 0; }
+  .disclaimer a { color: inherit; font-weight: 600; }
+
+  section { padding: 44px 0; border-top: 1px solid var(--line); }
+  section h2 { font-size: 1.6rem; letter-spacing: -0.01em; margin: 0 0 8px; }
+  section > .wrap > p.sub { color: var(--muted); margin: 0 0 24px; max-width: 44em; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.95em; }
+  .tag { display: inline-block; font-size: 0.75em; font-weight: 600; text-transform: uppercase;
+         letter-spacing: 0.06em; color: var(--gold); margin-bottom: 6px; }
+
+  .prompt {
+    background: var(--surface); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0;
+    padding: 16px 20px; font-size: 1.05em; margin: 0 0 20px; border-top: 1px solid var(--line);
+    border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  }
+  .chain { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; }
+  .chain code { background: var(--surface); border: 1px solid var(--line); padding: 4px 9px; border-radius: 6px; }
+  .chain .arr { color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93em; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+
+  ul.checks { list-style: none; padding: 0; margin: 20px 0 0; }
+  ul.checks li { padding-left: 26px; position: relative; margin-bottom: 10px; }
+  ul.checks li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
+
+  .steps { counter-reset: s; display: grid; gap: 18px; }
+  .step { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; }
+  .step::before {
+    counter-increment: s; content: counter(s); width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700;
+  }
+  .step h3 { margin: 2px 0 8px; font-size: 1.05rem; }
+  .step p { margin: 0 0 10px; color: var(--muted); }
+  .step > div { min-width: 0; }
+
+  .copy { position: relative; }
+  .copy button {
+    position: absolute; top: 8px; right: 8px; font: inherit; font-size: 0.8em; cursor: pointer;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px;
+  }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 0.9em; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#">nutshell<span>·</span>mcp</a>
+    <nav>
+      <a class="opt" href="#example">Example</a>
+      <a class="opt" href="#connect">Connect</a>
+      <a href="#self-host">Self-host</a>
+      <a href="https://github.com/scampion/nutshell-mcp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <h1>Ask your AI assistant about <em>any European region</em>, and get sourced answers.</h1>
+      <p class="lead">
+        nutshell-mcp is an MCP server that brings Eurostat, Copernicus and OpenStreetMap
+        together at a single grain — <strong>zone × indicator × period</strong>. Your assistant
+        compares regions, crosses sources and tells you how reliable each figure is,
+        without ever writing a query.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="#connect">Connect in 1 minute</a>
+        <a class="btn ghost" href="https://github.com/scampion/nutshell-mcp/blob/main/docs/examples.md">See example prompts</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="disclaimer" role="note">
+      <strong>⚠ Demonstration server</strong>
+      <p>
+        This instance is provided for demonstration and evaluation only — no guarantee of
+        availability, freshness or performance, no authentication, and it may be reset or shut
+        down at any time. <b>Do not build an operational service on it.</b> For any real use,
+        <a href="#self-host">clone the code and run your own installation</a>.
+      </p>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <h2>What your assistant can do with it</h2>
+      <p class="sub">Three families of sources, one table. Every value carries its quality flag and provenance.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="tag">Eurostat</div>
+          <h3>Official statistics</h3>
+          <p>GDP, unemployment, population, age structure… from NUTS 0 to NUTS 2, plus the full catalogue of 10,301 datasets at their native grain.</p>
+        </div>
+        <div class="card">
+          <div class="tag">OpenStreetMap</div>
+          <h3>What's on the ground</h3>
+          <p>Hospitals, schools, train stations counted per region and city, across 38 European countries.</p>
+        </div>
+        <div class="card">
+          <div class="tag">Copernicus</div>
+          <h3>Earth observation</h3>
+          <p>Climate and land rasters turned into regional statistics — summer surface temperature, soil sealing. Available on self-hosted instances (not materialised on this demo).</p>
+        </div>
+        <div class="card">
+          <div class="tag">Built for small models</div>
+          <h3>7 simple tools</h3>
+          <p>Narrow schemas, bounded outputs, errors that suggest the fix. Works with a 27B local model, not just frontier ones.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="example">
+    <div class="wrap">
+      <h2>One question, several sources</h2>
+      <p class="sub">A real prompt, and an excerpt of the answer it produced.</p>
+
+      <div class="prompt">
+        “I need to choose the European region where to open a geriatric clinic. Compare the
+        NUTS2 regions of France, Belgium and Luxembourg: oldest population, weakest hospital
+        supply relative to population, decent GDP per capita. Give me a justified top 5 and
+        state how reliable each source is.”
+      </div>
+
+      <div class="chain" aria-label="Tool chain">
+        <code>search_indicators</code><span class="arr">→</span>
+        <code>list_zones</code><span class="arr">→</span>
+        <code>get_indicators</code><span class="arr">→</span>
+        <code>search_datasets</code><span class="arr">→</span>
+        <code>query_data</code>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>#</th><th>Region (NUTS2)</th><th>Dependency 65+</th><th>Beds / 100k</th><th>GDP / inh.</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Brabant wallon (BE31)</td><td class="num">33.4 %</td><td class="num">225.3</td><td class="num">€69,500</td></tr>
+            <tr><td>2</td><td>Poitou-Charentes (FRI3)</td><td class="num">47.3 %</td><td class="num">492.9</td><td class="num">€34,900</td></tr>
+            <tr><td>3</td><td>Vlaams-Brabant (BE24)</td><td class="num">32.5 %</td><td class="num">377.4</td><td class="num">€57,100</td></tr>
+            <tr><td>4</td><td>Basse-Normandie (FRD1)</td><td class="num">44.3 %</td><td class="num">557.2</td><td class="num">€34,600</td></tr>
+            <tr><td>5</td><td>Corse (FRM0)</td><td class="num">43.2 %</td><td class="num">552.0</td><td class="num">€37,500</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p style="margin:24px 0 0">The table is the easy part. Because every value carries its quality flag, the assistant also said:</p>
+      <ul class="checks">
+        <li>Belgian bed counts are flagged <code>d</code> (<em>definition differs</em>): the France/Belgium comparison is indicative, and ranks 1 and 3 are Belgian.</li>
+        <li>OpenStreetMap reports 0 hospitals in the French overseas departments: a completeness gap, so they were excluded rather than ranked.</li>
+        <li>Luxembourg has no bed data: “a data hole, not a bad score”.</li>
+        <li>2025 values marked <code>[p]</code> are provisional.</li>
+      </ul>
+      <p style="margin:18px 0 0">
+        <a href="https://github.com/scampion/nutshell-mcp/blob/main/docs/examples.md">More example prompts and the tool chains they trigger →</a>
+      </p>
+    </div>
+  </section>
+
+  <section id="connect">
+    <div class="wrap">
+      <h2>Connect your assistant</h2>
+      <p class="sub">Any client that speaks MCP over HTTP: Claude Desktop, Claude Code, Cursor, pi, and others.</p>
+
+      <div class="steps">
+        <div class="step"><div>
+          <h3>Add the server</h3>
+          <p>Endpoint: <code>https://nutshell.scamp.fr/mcp</code> (streamable HTTP, no key).</p>
+          <div class="copy">
+            <button type="button" data-copy="cfg">Copy</button>
+<pre id="cfg">{
+  "mcpServers": {
+    "nutshell": {
+      "type": "http",
+      "url": "https://nutshell.scamp.fr/mcp"
+    }
+  }
+}</pre>
+          </div>
+          <p style="margin-top:10px">With Claude Code: <code>claude mcp add --transport http nutshell https://nutshell.scamp.fr/mcp</code></p>
+        </div></div>
+        <div class="step"><div>
+          <h3>Ask a question about places</h3>
+          <p>“Compare unemployment and median age in Île-de-France, Oberbayern and Lombardia.” The assistant finds the indicators, the zone codes, and returns one table.</p>
+        </div></div>
+        <div class="step"><div>
+          <h3>Ask for the sources</h3>
+          <p>Add “state how reliable each source is”: that is what makes the assistant reason about provisional values, definition changes and coverage gaps.</p>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="self-host">
+    <div class="wrap">
+      <h2>Run your own instance</h2>
+      <p class="sub">
+        Recommended for any real use. The server is stateless and serves everything from local
+        disk: once synchronised, it runs fully offline, and you choose the indicators,
+        countries and refresh cadence.
+      </p>
+      <div class="copy">
+        <button type="button" data-copy="install">Copy</button>
+<pre id="install">git clone https://github.com/scampion/nutshell-mcp.git
+cd nutshell-mcp
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e .
+
+.venv/bin/python -m nutshell_mcp.sync --source geo        # NUTS &amp; city geometries
+.venv/bin/python -m nutshell_mcp.sync --source eurostat   # registry indicators
+.venv/bin/python -m nutshell_mcp.server                   # stdio MCP server</pre>
+      </div>
+      <p style="margin:16px 0 0">
+        Adding an indicator takes one YAML file, no code. OSM and Copernicus pipelines,
+        HTTP deployment and configuration are described in the
+        <a href="https://github.com/scampion/nutshell-mcp#readme">README</a>
+        (<a href="https://github.com/scampion/nutshell-mcp/blob/main/README.fr.md">version française</a>).
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>nutshell-mcp — <em>Europe in a nutshell</em>. Data: © Eurostat, © EuroGeographics for GISCO boundaries, © OpenStreetMap contributors (ODbL), Copernicus.</span>
+    <span><a href="https://github.com/scampion/nutshell-mcp">Source on GitHub</a> · <a href="https://github.com/scampion/nutshell-mcp/blob/main/LICENSE">AGPL-3.0</a></span>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll("button[data-copy]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var t = document.getElementById(b.dataset.copy).textContent;
+      try {
+        navigator.clipboard.writeText(t).then(function () {
+          b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500);
+        });
+      } catch (e) { /* clipboard indisponible */ }
+    });
+  });
+</script>
+</body>
+</html>
