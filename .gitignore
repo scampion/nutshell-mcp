@@ -11,3 +11,4 @@ eurostat.db
 .ruff_cache/
 .claude/
 logs/
+api_keys.tsv

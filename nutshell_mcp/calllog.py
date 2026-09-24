@@ -16,7 +16,7 @@ import os
 import time
 from logging.handlers import TimedRotatingFileHandler
 
-from . import config
+from . import config, quota
 
 MAX_VALUE_CHARS = 300  # au-delà, les valeurs d'arguments sont tronquées
 
@@ -66,7 +66,11 @@ def logged(fn):
         status = "ok"
         try:
             result = await fn(*args, **kwargs)
-            if isinstance(result, str) and result.startswith(("Aucun", "Erreur")):
+            if isinstance(result, str) and result.startswith("Erreur : quota"):
+                status = "quota"
+            elif isinstance(result, str) and result.startswith("Erreur : trop d'appels"):
+                status = "burst"
+            elif isinstance(result, str) and result.startswith(("Aucun", "Erreur")):
                 status = "vide"
             return result
         except Exception as exc:
@@ -74,6 +78,8 @@ def logged(fn):
             raise
         finally:
             ms = round((time.perf_counter() - start) * 1000)
-            log.info("tool=%s args=%s ms=%d status=%s", fn.__name__, shown, ms, status)
+            client = quota.current_client()
+            log.info("tool=%s args=%s ms=%d status=%s client=%s", fn.__name__, shown,
+                     ms, status, client.label if client else "local")
 
     return wrapper

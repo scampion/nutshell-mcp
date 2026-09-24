@@ -31,7 +31,7 @@ except ImportError:  # SDK 1.x
 
 import duckdb
 
-from . import calllog, config, geo, mirror, registry, store
+from . import calllog, config, geo, mirror, quota, registry, store
 from . import eurostat_client as api
 from . import indicators as canonical
 
@@ -39,8 +39,8 @@ mcp = FastMCP("territorial")
 
 
 def _tool(fn):
-    """Enregistre le tool MCP, avec journal des appels (calllog)."""
-    return mcp.tool()(calllog.logged(fn))
+    """Enregistre le tool MCP : journal des appels (calllog), puis quota (HTTP public)."""
+    return mcp.tool()(calllog.logged(quota.limited(fn)))
 
 
 MAX_CODES_SHOWN = 25   # codes affichés par dimension dans get_structure
@@ -619,12 +619,25 @@ def _run_http() -> None:
             allowed_hosts=[*hosts, "127.0.0.1:*", "localhost:*"],
             allowed_origins=[f"https://{h}" for h in hosts],
         )
+    if quota.enabled():
+        _run_http_with_quota(opts)
+        return
     try:
         mcp.run(transport="streamable-http", **opts)
     except TypeError:  # SDK 1.x : réglages portés par mcp.settings
         for key, value in opts.items():
             setattr(mcp.settings, key, value)
         mcp.run(transport="streamable-http")
+
+
+def _run_http_with_quota(opts: dict) -> None:
+    """Sert l'app streamable HTTP derrière le middleware d'identité client (SDK 2.x)."""
+    import uvicorn
+
+    app = mcp.streamable_http_app(
+        transport_security=opts.get("transport_security"), host=opts["host"])
+    uvicorn.run(quota.ClientIdentity(app), host=opts["host"], port=opts["port"],
+                proxy_headers=False)
 
 
 def main() -> None:

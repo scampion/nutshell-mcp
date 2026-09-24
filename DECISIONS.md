@@ -250,6 +250,33 @@ cellule (P5, cellules courtes).
 
 ---
 
+## ADR-L1-16. Quotas du serveur de démo, en mémoire et par identité HTTP
+
+**Contexte.** Le serveur public (`nutshell.arcamens.ai`) est ouvert sans clé.
+La spec ne prévoit ni authentification ni quota. Il faut protéger le service et
+orienter l'usage intensif vers l'offre opérationnelle, sans gêner l'auto-hébergement.
+
+**Décision.** Module `quota.py`, inactif sauf `NUTSHELL_QUOTA=1` en transport
+HTTP. Un middleware ASGI pose l'identité du client dans une `ContextVar` (le SDK
+MCP 2.x la propage jusqu'au handler du tool). L'identité est une clé d'API
+(`api_keys.tsv`, tiers `free`/`pro`) ou, à défaut, l'IP. Les sorties des
+connecteurs claude.ai (`NUTSHELL_SHARED_NETS`) partagent un compteur, sinon
+tous leurs utilisateurs seraient bloqués ensemble. Défauts : 30 appels/min,
+100/jour en anonyme, 500 avec une clé gratuite, 5000 pour le réseau partagé ;
+`get_indicators` et `query_data` comptent double. Un refus est une **sortie de
+tool en texte** (Annexe A), pas un HTTP 429 : le modèle relaie à l'utilisateur
+les liens `#contact` et `#self-host`. Le journal d'appels enregistre l'identité
+pseudonymisée (`client=ip:<sha256 tronqué>`) pour calibrer les seuils.
+
+**Conséquence.** Les compteurs vivent en mémoire d'un seul processus : un
+redémarrage les remet à zéro, et plusieurs workers ne partagent pas leurs
+compteurs. C'est acceptable pour une démo mono-processus ; un backend partagé
+(SQLite, Redis) ne sera utile que si le service passe à plusieurs workers.
+Derrière un proxy, `NUTSHELL_PROXY_HOPS` doit valoir le nombre de proxys de
+confiance, sinon tous les clients ont l'IP du proxy.
+
+---
+
 ## Lot 2 — OSM
 
 ### ADR-L2-1. Périmètre configuré par variable d'environnement, défaut Luxembourg seul
