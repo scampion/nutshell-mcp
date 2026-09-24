@@ -457,3 +457,13 @@ Remaining:
 Each ingestion module exposes `sync(specs, full) -> SyncReport` and never writes
 Parquet itself: the exact contract is documented at the top of
 `nutshell_mcp/sync.py` and `nutshell_mcp/indicators.py`.
+
+## License
+
+[GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later).
+If you run a modified version of this server for users over a network, you must
+offer them its source code.
+
+Data served by the server remains under its sources' terms: © Eurostat,
+© EuroGeographics for the GISCO boundaries, © OpenStreetMap contributors (ODbL),
+Copernicus.
