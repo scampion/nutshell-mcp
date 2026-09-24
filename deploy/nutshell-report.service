@@ -1,8 +1,0 @@
-[Unit]
-Description=Bilan quotidien nutshell (nginx + MCP) par mail
-
-[Service]
-Type=oneshot
-User=debian
-SupplementaryGroups=adm systemd-journal
-ExecStart=/usr/bin/python3 /usr/local/bin/nutshell-report.py
