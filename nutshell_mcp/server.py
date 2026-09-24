@@ -31,11 +31,17 @@ except ImportError:  # SDK 1.x
 
 import duckdb
 
-from . import config, geo, mirror, registry, store
+from . import calllog, config, geo, mirror, registry, store
 from . import eurostat_client as api
 from . import indicators as canonical
 
 mcp = FastMCP("territorial")
+
+
+def _tool(fn):
+    """Enregistre le tool MCP, avec journal des appels (calllog)."""
+    return mcp.tool()(calllog.logged(fn))
+
 
 MAX_CODES_SHOWN = 25   # codes affichés par dimension dans get_structure
 MAX_CELLS = 400        # cellules max renvoyées par query_data
@@ -238,7 +244,7 @@ def _level_hint(zone: dict, levels: list[str]) -> str:
 
 # ------------------------------------------------------------------- tools
 
-@mcp.tool()
+@_tool
 async def search_indicators(query: str, source: str = "", limit: int = 10) -> str:
     """Cherche un indicateur (socio-économique, environnemental, infrastructure).
 
@@ -272,7 +278,7 @@ async def search_indicators(query: str, source: str = "", limit: int = 10) -> st
     return "\n".join(lines)
 
 
-@mcp.tool()
+@_tool
 async def list_zones(level: str, parent: str = "", contains: str = "") -> str:
     """Liste les zones d'un niveau NUTS0-3 ou CITY, sous un parent ou par nom.
 
@@ -316,7 +322,7 @@ async def list_zones(level: str, parent: str = "", contains: str = "") -> str:
     return "\n".join(out)
 
 
-@mcp.tool()
+@_tool
 async def get_indicators(
     indicators: list[str],
     zones: list[str],
@@ -440,7 +446,7 @@ async def get_indicators(
     return "\n".join(out)
 
 
-@mcp.tool()
+@_tool
 async def search_datasets(query: str, limit: int = 10) -> str:
     """Recherche full-text dans le catalogue Eurostat (~7000 datasets).
 
@@ -461,7 +467,7 @@ async def search_datasets(query: str, limit: int = 10) -> str:
     return "\n".join(out)
 
 
-@mcp.tool()
+@_tool
 async def get_structure(dataset: str) -> str:
     """Dimensions et codes d'un dataset (codelists tronquées).
 
@@ -490,7 +496,7 @@ async def get_structure(dataset: str) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool()
+@_tool
 async def list_codes(dataset: str, dimension: str, contains: str = "") -> str:
     """Liste les codes d'une dimension, filtrable par sous-chaîne.
 
@@ -530,7 +536,7 @@ async def list_codes(dataset: str, dimension: str, contains: str = "") -> str:
     return out
 
 
-@mcp.tool()
+@_tool
 async def query_data(
     dataset: str,
     filters: dict[str, str] | None = None,
@@ -622,6 +628,7 @@ def _run_http() -> None:
 
 
 def main() -> None:
+    calllog.setup()
     if os.environ.get("MCP_TRANSPORT") == "http":
         _run_http()
     else:

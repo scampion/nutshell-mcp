@@ -9,7 +9,7 @@ Variables d'environnement
 -------------------------
 ``NUTSHELL_DATA_DIR``
     Racine des données (défaut : racine du dépôt). Contient ``mirror/``,
-    ``eurostat.db`` et ``work/``.
+    ``eurostat.db``, ``logs/`` et ``work/``.
 ``NUTSHELL_REGISTRY_DIR``
     Répertoire des YAML d'indicateurs (défaut : ``registry/`` du dépôt). Le
     registre est du code versionné, pas de la donnée : il ne suit pas
@@ -53,6 +53,11 @@ def data_dir() -> Path:
 def mirror_dir() -> Path:
     """``mirror/`` : tout ce qui est matérialisé sur disque."""
     return data_dir() / "mirror"
+
+
+def logs_dir() -> Path:
+    """Journaux d'appels de tools (rotation quotidienne)."""
+    return data_dir() / "logs"
 
 
 def eurostat_mirror_dir() -> Path:
