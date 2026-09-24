@@ -562,9 +562,32 @@ async def query_data(
     return "\n".join(out)
 
 
+def _run_http() -> None:
+    """Transport HTTP ; hôte, port et Host autorisés (derrière un proxy) par variables d'env."""
+    opts: dict = {
+        "host": os.environ.get("NUTSHELL_HTTP_HOST", "127.0.0.1"),
+        "port": int(os.environ.get("NUTSHELL_HTTP_PORT", "8000")),
+    }
+    raw_hosts = os.environ.get("NUTSHELL_ALLOWED_HOSTS", "")
+    hosts = [h.strip() for h in raw_hosts.split(",") if h.strip()]
+    if hosts:
+        from mcp.server.transport_security import TransportSecuritySettings
+
+        opts["transport_security"] = TransportSecuritySettings(
+            allowed_hosts=[*hosts, "127.0.0.1:*", "localhost:*"],
+            allowed_origins=[f"https://{h}" for h in hosts],
+        )
+    try:
+        mcp.run(transport="streamable-http", **opts)
+    except TypeError:  # SDK 1.x : réglages portés par mcp.settings
+        for key, value in opts.items():
+            setattr(mcp.settings, key, value)
+        mcp.run(transport="streamable-http")
+
+
 def main() -> None:
     if os.environ.get("MCP_TRANSPORT") == "http":
-        mcp.run(transport="streamable-http")
+        _run_http()
     else:
         mcp.run()
 
